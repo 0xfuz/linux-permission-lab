@@ -1,0 +1,219 @@
+/* ==========================================================================
+   Cards — feature cards, filesystem tree, challenge cards, cheat sheet
+   ========================================================================== */
+
+/* ---------------------------- Feature card (home) ---------------------------- */
+
+.feature-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.feature-card:hover { transform: translateY(-3px); border-color: var(--border-strong); }
+.feature-card .feature-icon {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--amber-500);
+  margin-bottom: var(--space-4);
+}
+.feature-card h3 { margin-bottom: 6px; }
+.feature-card p { font-size: 0.88rem; margin-bottom: 0; }
+
+/* ---------------------------- Filesystem tree ---------------------------- */
+
+.fs-tree {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.fs-node-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 7px 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.fs-node-btn:hover { background: var(--bg-elevated); color: var(--text-primary); }
+.fs-node-btn.selected { background: rgba(255,176,0,0.1); border-color: rgba(255,176,0,0.25); color: var(--amber-300); }
+.fs-node-btn .fs-icon { flex-shrink: 0; opacity: 0.8; width: 16px; height: 16px; }
+.fs-node-btn .fs-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-node-btn .fs-perm-chip {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.fs-group { margin-left: 18px; border-left: 1px dashed var(--border-hairline); padding-left: 8px; }
+.fs-node-btn.is-risky .fs-perm-chip { color: var(--crit-500); }
+
+/* ---------------------------- Special bits explainer cards ---------------------------- */
+
+.bit-card {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  cursor: pointer;
+}
+.bit-card summary { list-style: none; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-family: var(--font-mono); font-weight: 600; color: var(--text-primary); }
+.bit-card summary::-webkit-details-marker { display: none; }
+.bit-card summary .chev { transition: transform var(--dur-fast) var(--ease-out); color: var(--text-tertiary); }
+.bit-card[open] summary .chev { transform: rotate(90deg); }
+.bit-card .bit-body { margin-top: var(--space-3); font-size: 0.88rem; }
+.bit-card .bit-body dt { color: var(--amber-300); font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; margin-top: var(--space-3); }
+.bit-card .bit-body dt:first-child { margin-top: 0; }
+.bit-card .bit-body dd { margin: 4px 0 0; color: var(--text-secondary); }
+
+/* ---------------------------- Challenge cards ---------------------------- */
+
+.challenge-tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-5); flex-wrap: wrap; }
+
+.challenge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.challenge-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.challenge-card:hover { transform: translateY(-3px); border-color: var(--border-strong); }
+.challenge-card.completed { border-color: rgba(61,220,132,0.35); }
+.challenge-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-2); }
+.challenge-card h3 { font-size: 1rem; margin-bottom: 2px; }
+.challenge-card .xp-tag { font-family: var(--font-mono); font-size: 0.72rem; color: var(--amber-300); white-space: nowrap; }
+.challenge-card p { font-size: 0.85rem; margin-bottom: 0; }
+.challenge-card .challenge-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
+
+/* ---------------------------- Cheat sheet table ---------------------------- */
+
+.cheat-search { margin-bottom: var(--space-5); max-width: 340px; }
+
+.cheat-table-wrap { overflow-x: auto; border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); }
+table.cheat-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+table.cheat-table th, table.cheat-table td { padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border-hairline); white-space: nowrap; }
+table.cheat-table th { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); background: var(--bg-inset); position: sticky; top: 0; }
+table.cheat-table td { color: var(--text-secondary); font-family: var(--font-mono); }
+table.cheat-table td.desc { font-family: var(--font-body); white-space: normal; color: var(--text-primary); }
+table.cheat-table tbody tr:hover { background: var(--bg-elevated); }
+table.cheat-table tbody tr[hidden] { display: none; }
+
+.cheat-example-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: var(--space-3); margin: var(--space-5) 0; }
+.cheat-example { background: var(--bg-inset); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); font-family: var(--font-mono); }
+.cheat-example .ce-octal { color: var(--amber-300); font-size: 1.1rem; }
+.cheat-example .ce-desc { font-family: var(--font-body); font-size: 0.78rem; color: var(--text-tertiary); }
+
+.best-practice-list { display: grid; gap: var(--space-2); }
+.best-practice-list li { list-style: none; padding-left: var(--space-5); position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+.best-practice-list li::before { content: "→"; position: absolute; left: 0; color: var(--amber-500); font-family: var(--font-mono); }
+
+/* ---------------------------- Learn cards ---------------------------- */
+
+.learn-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+}
+.learn-card summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.02rem;
+  color: var(--text-primary);
+  padding: 4px 0;
+}
+.learn-card summary::-webkit-details-marker { display: none; }
+.learn-card summary .chev { color: var(--text-tertiary); transition: transform var(--dur-fast) var(--ease-out); }
+.learn-card[open] summary .chev { transform: rotate(90deg); }
+.learn-card .learn-body { margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); }
+.learn-diagram {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  overflow-x: auto;
+}
+.learn-diagram svg { width: 100%; height: auto; min-width: 320px; display: block; margin: 0 auto; }
+.learn-block-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+.learn-example { font-size: 0.88rem; margin-bottom: 0; }
+.learn-commands { display: flex; flex-direction: column; gap: 6px; }
+.learn-commands code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--amber-300);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: 6px;
+  padding: 7px 10px;
+  width: fit-content;
+}
+.learn-tips-warnings { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.learn-tips ul, .learn-warnings ul { margin: 0; padding-left: 1.1em; }
+.learn-tips li { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 4px; }
+.learn-warnings li { color: var(--warn-500); font-size: 0.85rem; margin-bottom: 4px; }
+
+/* ---------------------------- Achievement badges ---------------------------- */
+
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.achievement-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+.achievement-badge.locked { opacity: 0.55; }
+.achievement-badge.earned { border-color: rgba(255,176,0,0.3); }
+.achievement-icon {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--amber-500);
+  flex-shrink: 0;
+}
+.achievement-badge.earned .achievement-icon { color: var(--amber-300); border-color: rgba(255,176,0,0.3); }
+.achievement-icon svg { width: 20px; height: 20px; }
+.achievement-info { flex: 1; min-width: 0; }
+.achievement-info h4 { margin: 0 0 4px; font-size: 0.9rem; }
+.achievement-info p { font-size: 0.8rem; margin: 0 0 6px; }

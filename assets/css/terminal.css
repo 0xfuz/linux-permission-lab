@@ -1,0 +1,91 @@
+/* ==========================================================================
+   Terminal simulator
+   ========================================================================== */
+
+.terminal-window {
+  background: #070a0a;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-panel);
+}
+
+.terminal-titlebar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-4);
+  background: #101617;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.terminal-titlebar .tl-dot { width: 11px; height: 11px; border-radius: 50%; }
+.terminal-titlebar .tl-dot.red { background: #ff5f57; }
+.terminal-titlebar .tl-dot.yellow { background: #febc2e; }
+.terminal-titlebar .tl-dot.green { background: #28c840; }
+.terminal-titlebar .tl-title {
+  margin-left: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+.terminal-body {
+  padding: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  line-height: 1.65;
+  height: 420px;
+  overflow-y: auto;
+  color: #d7e2e0;
+}
+
+.terminal-line { white-space: pre-wrap; word-break: break-word; }
+.terminal-line .t-prompt { color: var(--safe-500); }
+.terminal-line .t-path { color: var(--cyan-400); }
+.terminal-line .t-err { color: var(--crit-500); }
+.terminal-line .t-dim { color: var(--text-tertiary); }
+.terminal-line .t-amber { color: var(--amber-300); }
+
+.terminal-input-row { display: flex; align-items: center; gap: 8px; }
+.terminal-input-row .t-prompt { color: var(--safe-500); flex-shrink: 0; }
+.terminal-input-row .t-path { color: var(--cyan-400); flex-shrink: 0; }
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  caret-color: var(--amber-500);
+}
+
+.terminal-cursor {
+  display: inline-block;
+  width: 8px; height: 15px;
+  background: var(--amber-500);
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+  vertical-align: middle;
+}
+
+.terminal-hint-row {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-hairline);
+  background: #0d1213;
+}
+.terminal-hint-row button {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-hairline);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.terminal-hint-row button:hover { border-color: var(--amber-500); color: var(--amber-300); }

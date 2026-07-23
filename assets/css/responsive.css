@@ -1,0 +1,54 @@
+/* ==========================================================================
+   Responsive — tablet and mobile adaptations
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .simulator-grid { grid-template-columns: 1fr; }
+  .feature-grid { grid-template-columns: repeat(2, 1fr); }
+  .output-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 860px) {
+  .app-shell { grid-template-columns: 1fr; }
+
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0;
+    height: 100vh;
+    width: min(78vw, 280px);
+    transform: translateX(-100%);
+    transition: transform var(--dur-med) var(--ease-out);
+    box-shadow: 0 0 0 100vmax rgba(0,0,0,0);
+  }
+  .sidebar.open { transform: translateX(0); box-shadow: 20px 0 60px rgba(0,0,0,0.5); }
+
+  .topbar { display: flex; }
+
+  .view { padding: var(--space-6) var(--space-4) var(--space-7); }
+
+  .two-col, .simulator-grid { grid-template-columns: 1fr; }
+  .feature-grid { grid-template-columns: 1fr; }
+  .output-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 560px) {
+  .hero { padding: 56px var(--space-4) var(--space-6); }
+  .hero-actions { flex-direction: column; align-items: stretch; }
+  .hero-actions .btn { width: 100%; }
+  .output-grid { grid-template-columns: 1fr; }
+  .led-row { flex-wrap: wrap; }
+  .challenge-grid { grid-template-columns: 1fr; }
+  .terminal-body { height: 320px; }
+  table.cheat-table th, table.cheat-table td { padding: 8px 10px; }
+  .learn-tips-warnings { grid-template-columns: 1fr; }
+  .achievement-grid { grid-template-columns: 1fr; }
+}
+
+/* Backdrop for mobile sidebar */
+.sidebar-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(4,6,7,0.6);
+  z-index: 39;
+}
+.sidebar-backdrop.active { display: block; }

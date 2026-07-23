@@ -1,0 +1,87 @@
+/* ==========================================================================
+   RTL overrides — applied when <html dir="rtl"> (Arabic locale).
+   Scoped narrowly: only what actually breaks or looks wrong when mirrored.
+   Elements holding literal command syntax (terminal, chmod bar, calculator
+   inputs, cheat-sheet code examples) are forced dir="ltr" directly in
+   index.html and are intentionally left out of this file.
+   ========================================================================== */
+
+[dir="rtl"] body,
+[dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3, [dir="rtl"] h4,
+[dir="rtl"] .brand-text strong {
+  font-family: "Cairo", "Inter", "Space Grotesk", sans-serif;
+}
+
+/* Grid auto-mirrors in RTL, so the sidebar already sits on the right —
+   just flip which edge carries the separating border. */
+[dir="rtl"] .sidebar {
+  border-right: none;
+  border-left: 1px solid var(--border-hairline);
+}
+
+[dir="rtl"] .nav-item {
+  text-align: right;
+}
+
+[dir="rtl"] .fs-node-btn {
+  text-align: right;
+}
+
+[dir="rtl"] .fs-group {
+  border-left: none;
+  border-right: 1px dashed var(--border-hairline);
+  padding-left: 0;
+  padding-right: 8px;
+  margin-left: 0;
+  margin-right: 18px;
+}
+
+[dir="rtl"] table.cheat-table th,
+[dir="rtl"] table.cheat-table td {
+  text-align: right;
+}
+
+[dir="rtl"] .quiz-option {
+  text-align: right;
+}
+
+[dir="rtl"] .best-practice-list li {
+  padding-left: 0;
+  padding-right: var(--space-5);
+}
+[dir="rtl"] .best-practice-list li::before {
+  left: auto;
+  right: 0;
+}
+
+/* Mobile sidebar slides from the visual edge nearest its docked side. */
+@media (max-width: 860px) {
+  [dir="rtl"] .sidebar {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+  }
+  [dir="rtl"] .sidebar.open {
+    transform: translateX(0);
+  }
+}
+
+/* Chevron glyphs read the same rotated either direction, but mirror them
+   so they still point "into" the expanding content visually. */
+[dir="rtl"] .learn-card summary .chev,
+[dir="rtl"] .bit-card summary .chev {
+  transform: scaleX(-1);
+}
+[dir="rtl"] .learn-card[open] summary .chev,
+[dir="rtl"] .bit-card[open] summary .chev {
+  transform: scaleX(-1) rotate(90deg);
+}
+
+/* Skip link docks to the visual start edge (right, in RTL). */
+[dir="rtl"] .skip-link {
+  left: auto;
+  right: -999px;
+}
+[dir="rtl"] .skip-link:focus {
+  right: 0;
+}

@@ -1,0 +1,183 @@
+/* ==========================================================================
+   Linux Permission Lab — Design Tokens
+   Signature direction: "amber phosphor terminal" — a nod to pre-green CRT
+   terminals (VT100 amber displays) rather than the expected matrix-green
+   hacker cliché. Amber is the voice of the product; cyan is informational;
+   red/green are reserved strictly for security semantics (critical/safe).
+   ========================================================================== */
+
+:root {
+  /* ---- Surface ---- */
+  --bg-void: #0a0c0d;
+  --bg-base: #0d1113;
+  --bg-panel: #12181a;
+  --bg-elevated: #1a2224;
+  --bg-inset: #080a0b;
+  --border-hairline: #232d30;
+  --border-strong: #33403f;
+
+  /* ---- Amber system (brand voice) ---- */
+  --amber-100: #ffe9b3;
+  --amber-300: #ffcf5c;
+  --amber-500: #ffb000;
+  --amber-600: #e69800;
+  --amber-glow: rgba(255, 176, 0, 0.35);
+
+  /* ---- Cyan (informational / links / secondary accent) ---- */
+  --cyan-400: #5fd8e0;
+  --cyan-500: #2bc4d1;
+  --cyan-glow: rgba(43, 196, 209, 0.3);
+
+  /* ---- Security semantics (reserved — do not use decoratively) ---- */
+  --safe-500: #3ddc84;
+  --safe-glow: rgba(61, 220, 132, 0.25);
+  --warn-500: #ffcf3d;
+  --warn-glow: rgba(255, 207, 61, 0.25);
+  --crit-500: #ff5c5c;
+  --crit-glow: rgba(255, 92, 92, 0.3);
+
+  /* ---- Text ---- */
+  --text-primary: #eef2f1;
+  --text-secondary: #a9b6b5;
+  --text-tertiary: #6f8180;
+  --text-on-amber: #16110a;
+
+  /* ---- Type ---- */
+  --font-display: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-body: "Inter", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* ---- Scale ---- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --sidebar-width: 240px;
+  --shadow-panel: 0 8px 30px rgba(0, 0, 0, 0.45);
+  --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.3);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-med: 280ms;
+  --dur-slow: 480ms;
+}
+
+/* Light theme override (data attribute toggled via JS) */
+:root[data-theme="light"] {
+  --bg-void: #eef1ef;
+  --bg-base: #f6f7f5;
+  --bg-panel: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-inset: #e7ebe9;
+  --border-hairline: #dbe0de;
+  --border-strong: #c3cbc8;
+  --text-primary: #131b1a;
+  --text-secondary: #4b5957;
+  --text-tertiary: #7c8886;
+  --amber-glow: rgba(230, 152, 0, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-base);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,176,0,0.06), transparent),
+    repeating-linear-gradient(180deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+  min-height: 100vh;
+  transition: background-color var(--dur-med) var(--ease-out), color var(--dur-med) var(--ease-out);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.15;
+  margin: 0 0 var(--space-3);
+  letter-spacing: -0.01em;
+}
+
+h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); }
+h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
+h3 { font-size: 1.2rem; }
+
+p { margin: 0 0 var(--space-3); color: var(--text-secondary); }
+
+code, .mono, .font-mono { font-family: var(--font-mono); }
+
+a { color: var(--cyan-400); text-decoration: none; }
+a:hover { color: var(--amber-300); }
+
+ul { padding-left: 1.1em; color: var(--text-secondary); }
+
+::selection { background: var(--amber-glow); color: var(--text-primary); }
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--amber-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--amber-500);
+}
+
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: var(--amber-500);
+  color: var(--text-on-amber);
+  padding: var(--space-2) var(--space-4);
+  z-index: 999;
+  border-radius: 0 0 var(--radius-sm) 0;
+  font-weight: 600;
+}
+.skip-link:focus { left: 0; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-inset); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--amber-600); }

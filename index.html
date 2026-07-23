@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+  // Set lang/dir synchronously before first paint, so a stored Arabic
+  // preference doesn't flash as LTR English for a frame. i18n.js re-applies
+  // this properly once it loads; this is just the pre-paint fast path.
+  try {
+    var raw = localStorage.getItem("lpl_state_v1");
+    var storedLocale = raw ? JSON.parse(raw).locale : null;
+    if (storedLocale === "ar") {
+      document.documentElement.setAttribute("lang", "ar");
+      document.documentElement.setAttribute("dir", "rtl");
+    }
+  } catch (e) { /* localStorage unavailable — default LTR English is fine */ }
+</script>
+<title>Linux Permission Lab — Interactive Permissions Playground</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><rect width=%2224%22 height=%2224%22 rx=%225%22 fill=%22%23ffb000%22/><text x=%2212%22 y=%2217%22 font-family=%22monospace%22 font-size=%2213%22 font-weight=%22bold%22 text-anchor=%22middle%22 fill=%22%2316110a%22>$_</text></svg>">
+<meta name="description" content="Learn Linux file permissions visually: an interactive simulator, terminal, 19 learning topics, 10 guided labs, 80 challenges, a 100-question quiz, and a security analyzer — all in your browser." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="assets/css/main.css">
+<link rel="stylesheet" href="assets/css/layout.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/cards.css">
+<link rel="stylesheet" href="assets/css/terminal.css">
+<link rel="stylesheet" href="assets/css/animations.css">
+<link rel="stylesheet" href="assets/css/responsive.css">
+<link rel="stylesheet" href="assets/css/rtl.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main-content">Skip to content</a>
+
+<div class="sidebar-backdrop"></div>
+
+<div class="app-shell">
+
+  <!-- ============================== SIDEBAR ============================== -->
+  <aside class="sidebar" aria-label="Primary navigation">
+    <div class="sidebar-brand">
+      <div class="brand-mark" aria-hidden="true">$_</div>
+      <div class="brand-text">
+        <strong>Permission Lab</strong>
+        <span data-i18n="brand.tagline">chmod, visually</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Sections">
+      <button class="nav-item" data-view="home" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+        <span data-i18n="nav.home">Home</span>
+      </button>
+      <button class="nav-item" data-view="simulator" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h2M7 13h2M12 9h5M12 13h5M7 17h10"/></svg>
+        <span data-i18n="nav.simulator">Simulator</span>
+        <span class="kbd-hint">1</span>
+      </button>
+      <button class="nav-item" data-view="calculator" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h2M12 12h2M16 12h.01M8 16h2M12 16h2M16 16h.01"/></svg>
+        <span data-i18n="nav.calculator">Calculator</span>
+        <span class="kbd-hint">2</span>
+      </button>
+      <button class="nav-item" data-view="terminal" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg>
+        <span data-i18n="nav.terminal">Terminal</span>
+        <span class="kbd-hint">3</span>
+      </button>
+      <button class="nav-item" data-view="learn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Z"/><path d="M4 19a2.5 2.5 0 0 1 2.5-2.5H20"/></svg>
+        <span data-i18n="nav.learn">Learn</span>
+        <span class="kbd-hint">4</span>
+      </button>
+      <button class="nav-item" data-view="labs" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 2h6M10 2v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3.5L14 8V2"/><path d="M7 15h10"/></svg>
+        <span data-i18n="nav.labs">Labs</span>
+        <span class="kbd-hint">5</span>
+      </button>
+      <button class="nav-item" data-view="challenges" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4Z"/><path d="m9 12 2 2 4-4"/></svg>
+        <span data-i18n="nav.challenges">Challenges</span>
+        <span class="kbd-hint">6</span>
+      </button>
+      <button class="nav-item" data-view="quiz" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.9.4-1.4 1-1.4 1.9v.3M12 17v.01"/></svg>
+        <span data-i18n="nav.quiz">Quiz</span>
+        <span class="kbd-hint">7</span>
+      </button>
+      <button class="nav-item" data-view="cheatsheet" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l3 3v15H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+        <span data-i18n="nav.cheatsheet">Cheat Sheet</span>
+        <span class="kbd-hint">8</span>
+      </button>
+      <button class="nav-item" data-view="progress" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V10M11 19V5M18 19v-7"/></svg>
+        <span data-i18n="nav.progress">Progress</span>
+        <span class="kbd-hint">9</span>
+      </button>
+      <button class="nav-item" data-view="about" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg>
+        <span data-i18n="nav.about">About</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="xp-widget">
+        <div class="row between"><span data-i18n="xp.label">Lab progress</span><span id="xp-widget-label">0 / 0 XP</span></div>
+        <div class="xp-bar-track"><div class="xp-bar-fill" id="xp-widget-fill" style="width:0%"></div></div>
+      </div>
+      <button class="theme-toggle" id="lang-toggle-btn" type="button" style="margin-bottom:8px">
+        <span data-i18n="lang.toggle">العربية</span>
+        <span aria-hidden="true">🌐</span>
+      </button>
+      <button class="theme-toggle" id="theme-toggle-btn" type="button">
+        <span id="theme-toggle-label">Dark mode</span>
+        <span aria-hidden="true">◐</span>
+      </button>
+      <div class="author-credit">
+        Created with <span class="heart" aria-hidden="true">❤</span> by <strong>0x0MAr</strong>
+        <div class="author-social">
+          <a href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on GitHub" data-tooltip="GitHub">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.11 2.91.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.05 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.79-4.57 5.04.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
+          </a>
+          <a href="https://x.com/_7pwn" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on X" data-tooltip="X / Twitter">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.9l-5.4-6.9L4.4 22H1.3l8.1-9.3L1 2h7l4.9 6.3L18.9 2Zm-1.2 18h1.9L7.4 4h-2L17.7 20Z"/></svg>
+          </a>
+          <a href="https://instagram.com/0xfuz" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on Instagram" data-tooltip="Instagram">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============================== MAIN ============================== -->
+  <div class="main-region">
+
+    <div class="topbar">
+      <div class="sidebar-brand" style="border:none;padding:0">
+        <div class="brand-mark" aria-hidden="true" style="width:28px;height:28px;font-size:0.8rem">$_</div>
+        <strong style="font-family:var(--font-display)">Permission Lab</strong>
+      </div>
+      <button class="btn btn-icon btn-ghost" id="mobile-menu-btn" type="button" aria-label="Open navigation menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+
+    <main id="main-content">
+
+      <!-- ========================= HOME ========================= -->
+      <section id="view-home" class="view active">
+        <div class="hero">
+          <div class="hero-inner">
+            <span class="hero-badge"><span class="dot" aria-hidden="true"></span> <span data-i18n="hero.badge">Runs entirely in your browser — no login, no backend</span></span>
+            <h1><span data-i18n="hero.title1">Linux</span> <span class="accent" data-i18n="hero.title2">Permission</span> <span data-i18n="hero.title3">Lab</span></h1>
+            <p class="hero-sub" data-i18n="hero.sub">An interactive playground for understanding Linux file permissions — flip real permission bits, watch chmod update live, break into a fake filesystem, and prove it in hands-on challenges.</p>
+            <div class="hero-actions">
+              <button class="btn btn-primary" type="button" data-goto="simulator">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3v18l15-9L5 3Z"/></svg>
+                <span data-i18n="hero.startLab">Start Lab</span>
+              </button>
+              <button class="btn btn-ghost" type="button" data-goto="cheatsheet" data-i18n="hero.docs">Documentation</button>
+            </div>
+            <p class="hero-author-badge"><span data-i18n="hero.authorBadge">Created with</span> <span class="heart" aria-hidden="true">❤</span> <a href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer">0x0MAr</a></p>
+            <div class="hero-terminal-preview" aria-hidden="true">
+              <div class="terminal-window">
+                <div class="terminal-titlebar">
+                  <span class="tl-dot red"></span><span class="tl-dot yellow"></span><span class="tl-dot green"></span>
+                  <span class="tl-title">learner@permission-lab</span>
+                </div>
+                <div class="terminal-body" style="height:auto;padding:20px 20px 24px" dir="ltr">
+                  <div class="terminal-line"><span class="t-prompt">learner@permission-lab</span>:<span class="t-path">~</span>$ ls -l authorized_keys</div>
+                  <div class="terminal-line t-dim">-rw------- 1 user user 412 Jun 3 authorized_keys</div>
+                  <div class="terminal-line"><span class="t-prompt">learner@permission-lab</span>:<span class="t-path">~</span>$ chmod 600 authorized_keys<span class="terminal-cursor"></span></div>
+                </div>
+              </div>
+            </div>
+            <div class="scroll-indicator">
+              <span data-i18n="hero.scroll">Scroll</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="home-sections">
+          <div class="home-strip">
+            <span class="eyebrow" data-i18n="home.whatsInside">What's inside</span>
+            <h2 data-i18n="home.heading">A full curriculum, not just a calculator</h2>
+            <div class="feature-grid stagger">
+              <div class="feature-card">
+                <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h2M12 9h5M7 13h2M12 13h5"/></svg></div>
+                <h3 data-i18n="home.feature.sim.title">Permission Simulator</h3>
+                <p data-i18n="home.feature.sim.desc">Toggle owner, group and others like LED switches and watch symbolic, octal, binary and the chmod command update instantly.</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg></div>
+                <h3 data-i18n="home.feature.fs.title">Fake Filesystem</h3>
+                <p data-i18n="home.feature.fs.desc">59 realistic files across /etc, /var, /opt, /usr, /tmp, /home and /root — click through real-world permission mistakes.</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg></div>
+                <h3 data-i18n="home.feature.term.title">Terminal Simulator</h3>
+                <p data-i18n="home.feature.term.desc">20+ simulated commands — ls, chmod, chown, find, grep, tree, stat and more — over a safe, fake shell.</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Z"/><path d="M4 19a2.5 2.5 0 0 1 2.5-2.5H20"/></svg></div>
+                <h3 data-i18n="home.feature.learn.title">19 Learning Cards</h3>
+                <p data-i18n="home.feature.learn.desc">Every core topic — chmod, chown, umask, ACLs, special bits and more — with diagrams, examples, and warnings.</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 2h6M10 2v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3.5L14 8V2"/></svg></div>
+                <h3 data-i18n="home.feature.labs.title">10 Interactive Labs</h3>
+                <p data-i18n="home.feature.labs.desc">Guided, multi-step walkthroughs — from securing an SSH key to a full capstone permission audit.</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+                <h3 data-i18n="home.feature.challenges.title">80 Challenges</h3>
+                <p data-i18n="home.feature.challenges.desc">Twenty each across Beginner, Intermediate, Advanced and Expert — earn XP and level up as you go.</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.9.4-1.4 1-1.4 1.9v.3M12 17v.01"/></svg></div>
+                <h3 data-i18n="home.feature.quiz.title">100-Question Quiz</h3>
+                <p data-i18n="home.feature.quiz.desc">Multiple-choice rounds across every topic, with instant explanations and lifetime accuracy tracking.</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4Z"/></svg></div>
+                <h3 data-i18n="home.feature.security.title">Security Analyzer</h3>
+                <p data-i18n="home.feature.security.desc">Every permission state is graded Safe, Warning or Critical with a plain-language explanation of why.</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19V10M11 19V5M18 19v-7"/></svg></div>
+                <h3 data-i18n="home.feature.xp.title">XP, Levels &amp; Achievements</h3>
+                <p data-i18n="home.feature.xp.desc">12 unlockable achievements, level progression, and a printable certificate once you clear the curriculum.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="footer-note"><span data-i18n="home.footerNote">Linux Permission Lab v2.2 · Educational simulation, no real shell execution</span> · <span id="current-year"></span></p>
+        <p class="footer-author-credit">
+          <span data-i18n="hero.authorBadge">Created with</span> <span class="heart" aria-hidden="true">❤</span> <strong>0x0MAr</strong>
+          <span class="author-social">
+            <a href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on GitHub" data-tooltip="GitHub">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.11 2.91.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.05 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.79-4.57 5.04.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
+            </a>
+            <a href="https://x.com/_7pwn" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on X" data-tooltip="X / Twitter">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.9l-5.4-6.9L4.4 22H1.3l8.1-9.3L1 2h7l4.9 6.3L18.9 2Zm-1.2 18h1.9L7.4 4h-2L17.7 20Z"/></svg>
+            </a>
+            <a href="https://instagram.com/0xfuz" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on Instagram" data-tooltip="Instagram">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1"/></svg>
+            </a>
+          </span>
+        </p>
+      </section>
+
+      <!-- ========================= SIMULATOR ========================= -->
+      <section id="view-simulator" class="view">
+        <div class="view-header">
+          <span class="eyebrow">Module 01 · 02 · 05 · 06</span>
+          <h2 data-i18n="sim.title">Permission Simulator</h2>
+          <p data-i18n="sim.desc">Pick a file from the fake filesystem, or build permissions from scratch. Every toggle updates the live output and the security analysis below.</p>
+        </div>
+
+        <div class="simulator-grid">
+          <div class="panel" id="fs-panel">
+            <div class="panel-title"><span class="dot"></span> <span data-i18n="sim.fsPanel">Fake filesystem</span></div>
+            <div id="fs-tree-mount"></div>
+          </div>
+
+          <div class="stack" id="simulator-panel">
+            <div class="panel">
+              <div class="row between" style="margin-bottom: var(--space-4)">
+                <div class="panel-title" style="margin-bottom:0"><span class="dot"></span> <span data-i18n="sim.editor">Permission editor</span></div>
+                <div class="row">
+                  <button class="btn btn-ghost btn-sm" id="reset-sim-btn" type="button" data-i18n="sim.reset">Reset</button>
+                </div>
+              </div>
+              <div class="stack">
+                <div id="perm-owner-mount"></div>
+                <div id="perm-group-mount"></div>
+                <div id="perm-others-mount"></div>
+                <div id="perm-special-mount"></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-title"><span class="dot"></span> <span data-i18n="sim.liveOutput">Live output</span></div>
+              <div class="output-grid" style="margin-bottom: var(--space-4)">
+                <div class="readout"><div class="readout-label" data-i18n="sim.symbolic">Symbolic</div><div class="readout-value" id="readout-symbolic">rwxr-xr-x</div></div>
+                <div class="readout"><div class="readout-label" data-i18n="sim.octal">Octal</div><div class="readout-value" id="readout-octal">755</div></div>
+                <div class="readout"><div class="readout-label" data-i18n="sim.binary">Binary</div><div class="readout-value" id="readout-binary">111 101 101</div></div>
+              </div>
+              <div class="chmod-bar" dir="ltr">
+                <span class="prompt">$</span>
+                <span class="cmd-text" id="chmod-cmd-text">chmod 755 file.txt</span>
+                <button class="btn btn-ghost btn-sm copy-btn" id="copy-chmod-btn" type="button" data-tooltip="Copy command">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                  <span data-i18n="sim.copy">Copy</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="row between" style="margin-bottom: var(--space-3)">
+                <div class="panel-title" style="margin-bottom:0"><span class="dot"></span> <span data-i18n="sim.securityAnalysis">Security analysis</span></div>
+                <span class="badge badge-safe" id="security-badge">Safe</span>
+              </div>
+              <p id="security-headline" style="font-weight:600;color:var(--text-primary)"></p>
+              <ul id="security-reasons"></ul>
+            </div>
+
+            <div class="panel">
+              <div class="panel-title"><span class="dot"></span> <span data-i18n="sim.bitsExplained">Special bits explained</span></div>
+              <div class="stack" id="bits-visualizer-mount"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================= CALCULATOR ========================= -->
+      <section id="view-calculator" class="view">
+        <div class="view-header">
+          <span class="eyebrow">Module 04</span>
+          <h2 data-i18n="calc.title">Permission Calculator</h2>
+          <p data-i18n="calc.desc">Type an octal mode or a symbolic string — both directions convert automatically.</p>
+        </div>
+
+        <div class="two-col">
+          <div class="panel stack">
+            <div>
+              <label class="eyebrow" for="calc-octal-input" style="display:block;margin-bottom:8px" data-i18n="calc.octalInput">Octal input</label>
+              <input id="calc-octal-input" class="terminal-input" dir="ltr" style="background:var(--bg-inset);border:1px solid var(--border-hairline);border-radius:8px;padding:10px 12px;width:100%;font-family:var(--font-mono);font-size:1rem" placeholder="755" maxlength="4" autocomplete="off">
+              <p id="calc-octal-error" style="color:var(--crit-500);font-size:0.8rem;min-height:18px;margin-top:6px"></p>
+            </div>
+            <div>
+              <label class="eyebrow" for="calc-symbolic-input" style="display:block;margin-bottom:8px" data-i18n="calc.symbolicInput">Symbolic input</label>
+              <input id="calc-symbolic-input" class="terminal-input" dir="ltr" style="background:var(--bg-inset);border:1px solid var(--border-hairline);border-radius:8px;padding:10px 12px;width:100%;font-family:var(--font-mono);font-size:1rem" placeholder="rwxr-xr-x" maxlength="10" autocomplete="off">
+              <p id="calc-symbolic-error" style="color:var(--crit-500);font-size:0.8rem;min-height:18px;margin-top:6px"></p>
+            </div>
+            <div>
+              <span class="eyebrow" style="display:block;margin-bottom:10px" data-i18n="calc.presets">Quick presets</span>
+              <div class="row wrap" id="calc-presets" dir="ltr"></div>
+            </div>
+          </div>
+
+          <div class="panel stack">
+            <div class="panel-title" style="margin-bottom:0"><span class="dot"></span> <span data-i18n="calc.result">Result</span></div>
+            <div class="output-grid">
+              <div class="readout"><div class="readout-label" data-i18n="sim.octal">Octal</div><div class="readout-value" id="calc-octal-out">755</div></div>
+              <div class="readout"><div class="readout-label" data-i18n="sim.symbolic">Symbolic</div><div class="readout-value" id="calc-symbolic-out">rwxr-xr-x</div></div>
+              <div class="readout"><div class="readout-label" data-i18n="sim.binary">Binary</div><div class="readout-value" id="calc-binary-out">111 101 101</div></div>
+            </div>
+            <button class="btn btn-primary" id="calc-copy-btn" type="button" style="align-self:flex-start" data-i18n="calc.copyChmod">Copy as chmod command</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================= TERMINAL ========================= -->
+      <section id="view-terminal" class="view">
+        <div class="view-header">
+          <span class="eyebrow">Module 03</span>
+          <h2 data-i18n="term.title">Terminal Simulator</h2>
+          <p data-i18n="term.desc">A simulated shell over the same fake filesystem. Try ls -la, tree, find shadow, stat backup.sql, or chmod 600 backup.sql. Type help for the full command list.</p>
+        </div>
+
+        <div class="terminal-window" dir="ltr">
+          <div class="terminal-titlebar">
+            <span class="tl-dot red"></span><span class="tl-dot yellow"></span><span class="tl-dot green"></span>
+            <span class="tl-title">learner@permission-lab — simulated shell</span>
+          </div>
+          <div class="terminal-body" id="terminal-body" role="log" aria-live="polite"></div>
+          <div style="padding: 0 16px 14px">
+            <div class="terminal-input-row">
+              <span id="terminal-prompt-prefix"></span>
+              <input id="terminal-input" class="terminal-input" type="text" aria-label="Terminal input" autocomplete="off" spellcheck="false">
+            </div>
+          </div>
+          <div class="terminal-hint-row">
+            <button type="button" data-cmd="help">help</button>
+            <button type="button" data-cmd="ls -la">ls -la</button>
+            <button type="button" data-cmd="tree">tree</button>
+            <button type="button" data-cmd="find shadow">find shadow</button>
+            <button type="button" data-cmd="stat backup.sql">stat backup.sql</button>
+            <button type="button" data-cmd="chmod 600 backup.sql">chmod 600 backup.sql</button>
+            <button type="button" data-cmd="chown alice backup.sql">chown alice backup.sql</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================= LEARN ========================= -->
+      <section id="view-learn" class="view">
+        <div class="view-header">
+          <span class="eyebrow">Module 09 · New</span>
+          <h2 data-i18n="learn.title">Learn</h2>
+          <p data-i18n="learn.desc">19 reference topics covering the full permission model — each with a diagram, an example, command references, tips and warnings.</p>
+        </div>
+
+        <div class="row between wrap" style="margin-bottom: var(--space-4)">
+          <input id="learn-search-input" class="terminal-input cheat-search" data-i18n-placeholder="learn.searchPlaceholder" style="background:var(--bg-inset);border:1px solid var(--border-hairline);border-radius:8px;padding:10px 12px;width:100%;max-width:340px;font-family:var(--font-mono)" type="search" placeholder="Search topics, e.g. SUID or umask" aria-label="Search learning topics">
+          <div class="row">
+            <button class="btn btn-ghost btn-sm" id="learn-expand-all" type="button" data-i18n="learn.expandAll">Expand all</button>
+            <button class="btn btn-ghost btn-sm" id="learn-collapse-all" type="button" data-i18n="learn.collapseAll">Collapse all</button>
+          </div>
+        </div>
+
+        <div class="stack" id="learn-list-mount"></div>
+      </section>
+
+      <!-- ========================= LABS ========================= -->
+      <section id="view-labs" class="view">
+        <div class="view-header">
+          <span class="eyebrow">Module 10 · New</span>
+          <h2 data-i18n="labs.title">Interactive Labs</h2>
+          <p data-i18n="labs.desc">Ten guided, multi-step walkthroughs — each mixes short explanations with graded checkpoints, from a first SSH key fix to a full capstone audit.</p>
+        </div>
+
+        <div class="challenge-grid" id="labs-grid"></div>
+      </section>
+
+      <!-- ========================= CHALLENGES ========================= -->
+      <section id="view-challenges" class="view">
+        <div class="view-header">
+          <span class="eyebrow">Module 07</span>
+          <h2 data-i18n="ch.title">Challenges</h2>
+          <p data-i18n="ch.desc">80 labs across four tiers — Beginner, Intermediate, Advanced and Expert. Type the octal mode that solves each scenario and earn XP.</p>
+        </div>
+
+        <div class="row between wrap" style="margin-bottom: var(--space-4)">
+          <div class="challenge-tabs" id="challenge-tabs"></div>
+          <button class="btn btn-ghost btn-sm" id="random-challenge-btn" type="button" data-i18n="ch.random">🎲 Random challenge</button>
+        </div>
+
+        <div class="challenge-grid" id="challenge-grid"></div>
+        <p id="challenge-empty-state" class="text-tertiary" hidden data-i18n="ch.empty">No challenges in this tier.</p>
+      </section>
+
+      <!-- ========================= QUIZ ========================= -->
+      <section id="view-quiz" class="view">
+        <div class="view-header">
+          <span class="eyebrow">Module 08 · New</span>
+          <h2 data-i18n="quiz.title">Quiz</h2>
+          <p data-i18n="quiz.desc">100 multiple-choice questions across every topic. Rounds are 10 questions — filter by topic or mix them all.</p>
+        </div>
+
+        <div class="row between wrap" style="margin-bottom: var(--space-4)">
+          <div class="challenge-tabs" id="quiz-topic-tabs"></div>
+        </div>
+
+        <div class="panel">
+          <div class="row between" id="quiz-progress-header" style="margin-bottom: var(--space-4)"></div>
+          <div id="quiz-question-mount"></div>
+        </div>
+      </section>
+
+      <!-- ========================= CHEAT SHEET ========================= -->
+      <section id="view-cheatsheet" class="view">
+        <div class="view-header">
+          <span class="eyebrow">Module 11</span>
+          <h2 data-i18n="cheat.title">Cheat Sheet</h2>
+          <p data-i18n="cheat.desc">The permission modes you'll actually use, in one reference table.</p>
+        </div>
+
+        <input id="cheat-search-input" class="terminal-input cheat-search" data-i18n-placeholder="cheat.searchPlaceholder" style="background:var(--bg-inset);border:1px solid var(--border-hairline);border-radius:8px;padding:10px 12px;width:100%;font-family:var(--font-mono)" type="search" placeholder="Search modes, e.g. 600 or ssh key" aria-label="Search cheat sheet">
+
+        <div class="cheat-table-wrap">
+          <table class="cheat-table">
+            <thead><tr><th scope="col" data-i18n="cheat.colOctal">Octal</th><th scope="col" data-i18n="cheat.colSymbolic">Symbolic</th><th scope="col" data-i18n="cheat.colWhen">When to use it</th></tr></thead>
+            <tbody id="cheat-table-body"></tbody>
+          </table>
+        </div>
+
+        <hr class="divider">
+
+        <h3 data-i18n="cheat.readingDigits">Reading the digits</h3>
+        <div class="cheat-example-grid" dir="ltr">
+          <div class="cheat-example"><div class="ce-octal">4</div><div class="ce-desc">read (r)</div></div>
+          <div class="cheat-example"><div class="ce-octal">2</div><div class="ce-desc">write (w)</div></div>
+          <div class="cheat-example"><div class="ce-octal">1</div><div class="ce-desc">execute (x)</div></div>
+          <div class="cheat-example"><div class="ce-octal">4+2+1=7</div><div class="ce-desc">read + write + execute</div></div>
+        </div>
+
+        <h3 data-i18n="cheat.binaryRef">Binary reference</h3>
+        <div class="cheat-example-grid" dir="ltr">
+          <div class="cheat-example"><div class="ce-octal">000</div><div class="ce-desc">0 — no access</div></div>
+          <div class="cheat-example"><div class="ce-octal">100</div><div class="ce-desc">4 — read only</div></div>
+          <div class="cheat-example"><div class="ce-octal">010</div><div class="ce-desc">2 — write only</div></div>
+          <div class="cheat-example"><div class="ce-octal">001</div><div class="ce-desc">1 — execute only</div></div>
+          <div class="cheat-example"><div class="ce-octal">110</div><div class="ce-desc">6 — read + write</div></div>
+          <div class="cheat-example"><div class="ce-octal">101</div><div class="ce-desc">5 — read + execute</div></div>
+          <div class="cheat-example"><div class="ce-octal">011</div><div class="ce-desc">3 — write + execute</div></div>
+          <div class="cheat-example"><div class="ce-octal">111</div><div class="ce-desc">7 — read + write + execute</div></div>
+        </div>
+
+        <h3 data-i18n="cheat.specialBits">Special bits</h3>
+        <div class="cheat-example-grid" dir="ltr">
+          <div class="cheat-example"><div class="ce-octal">4000</div><div class="ce-desc">SUID — run as file owner</div></div>
+          <div class="cheat-example"><div class="ce-octal">2000</div><div class="ce-desc">SGID — run as file group / inherit dir group</div></div>
+          <div class="cheat-example"><div class="ce-octal">1000</div><div class="ce-desc">Sticky — only owner can delete, on directories</div></div>
+        </div>
+
+        <h3 data-i18n="cheat.commonCommands">Common Linux commands</h3>
+        <div class="cheat-table-wrap" style="margin-bottom:var(--space-5)" dir="ltr">
+          <table class="cheat-table">
+            <thead><tr><th scope="col" data-i18n="cheat.colCommand">Command</th><th scope="col" data-i18n="cheat.colDoes">What it does</th></tr></thead>
+            <tbody>
+              <tr><td>chmod 755 file</td><td class="desc">Set a file's permission mode.</td></tr>
+              <tr><td>chmod u+x file</td><td class="desc">Add execute for the owner only, symbolically.</td></tr>
+              <tr><td>chown user:group file</td><td class="desc">Change owner and group in one command.</td></tr>
+              <tr><td>chgrp group file</td><td class="desc">Change only the owning group.</td></tr>
+              <tr><td>umask 022</td><td class="desc">Set the default permission mask for newly created files.</td></tr>
+              <tr><td>ls -l</td><td class="desc">List files with permissions, owner, group, size and date.</td></tr>
+              <tr><td>ls -la</td><td class="desc">Same, including hidden dotfiles.</td></tr>
+              <tr><td>stat file</td><td class="desc">Show detailed permission and metadata for one file.</td></tr>
+              <tr><td>find / -perm -4000</td><td class="desc">List every SUID binary on the system.</td></tr>
+              <tr><td>find / -perm -o+w -type f</td><td class="desc">List every world-writable regular file.</td></tr>
+              <tr><td>getfacl file</td><td class="desc">Show a file's Access Control List entries.</td></tr>
+              <tr><td>setfacl -m u:name:rx file</td><td class="desc">Grant an individual user extra ACL access.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 data-i18n="cheat.troubleshooting">Permission troubleshooting</h3>
+        <div class="stack" style="margin-bottom:var(--space-5)">
+          <div class="panel">
+            <strong style="color:var(--text-primary)">"Permission denied" running a script with ./</strong>
+            <p style="margin:6px 0 0">The file is missing execute permission. Run <code>chmod +x script.sh</code>, or check with <code>ls -l</code> first.</p>
+          </div>
+          <div class="panel">
+            <strong style="color:var(--text-primary)">"Permission denied" entering a directory with cd</strong>
+            <p style="margin:6px 0 0">The directory is missing execute permission for you. Read alone isn't enough to enter a directory — you need execute too.</p>
+          </div>
+          <div class="panel">
+            <strong style="color:var(--text-primary)">Can't create a file inside a directory you can enter</strong>
+            <p style="margin:6px 0 0">You have execute but not write on the directory. Write permission on the directory itself (not the files inside it) controls whether you can create or delete entries.</p>
+          </div>
+          <div class="panel">
+            <strong style="color:var(--text-primary)">SSH refuses to use a key file</strong>
+            <p style="margin:6px 0 0">The key is more permissive than 600. Run <code>chmod 600 ~/.ssh/id_ed25519</code> and confirm <code>~/.ssh</code> itself is 700.</p>
+          </div>
+          <div class="panel">
+            <strong style="color:var(--text-primary)">Files keep landing in the wrong group in a shared directory</strong>
+            <p style="margin:6px 0 0">Set the SGID bit on the directory (<code>chmod g+s dir</code>) so new files automatically inherit its group.</p>
+          </div>
+        </div>
+
+        <h3 data-i18n="cheat.bestPractices">Best practices</h3>
+        <ul class="best-practice-list">
+          <li>Never use 777 on anything you didn't specifically design to be world-writable.</li>
+          <li>Private keys and credentials should be 600 (or 400 for read-only secrets).</li>
+          <li>Directories need the execute bit to be entered — 644 on a directory locks everyone out of it.</li>
+          <li>Prefer group permissions over world permissions when sharing access with a team.</li>
+          <li>Audit SUID binaries regularly — they're one of the highest-value privilege-escalation targets.</li>
+          <li>Pair any world-writable directory with the sticky bit, the same way /tmp does.</li>
+          <li>Set a strict umask (like 077) in your shell profile if you default toward privacy.</li>
+        </ul>
+      </section>
+
+      <!-- ========================= PROGRESS ========================= -->
+      <section id="view-progress" class="view">
+        <div class="view-header">
+          <span class="eyebrow">Module 12 · New</span>
+          <h2 data-i18n="progress.title">Progress</h2>
+          <p data-i18n="progress.desc">Your XP, level, and stats across Challenges, Labs and Quiz — plus achievements and a certificate once you clear the curriculum.</p>
+        </div>
+
+        <div id="progress-stats-mount"></div>
+
+        <div class="panel-title" style="margin-top:var(--space-2)"><span class="dot"></span> <span data-i18n="progress.achievements">Achievements</span></div>
+        <div class="achievement-grid" id="achievement-grid-mount"></div>
+
+        <div style="margin-top:var(--space-6)" id="progress-certificate-mount"></div>
+      </section>
+
+      <!-- ========================= ABOUT ========================= -->
+      <section id="view-about" class="view">
+        <div class="view-header">
+          <span class="eyebrow" data-i18n="about.eyebrow">About</span>
+          <h2 data-i18n="about.title">What this is, and isn't</h2>
+        </div>
+        <div class="panel stack" style="max-width:720px;margin-bottom:var(--space-5)">
+          <p data-i18n="about.p1">Linux Permission Lab is a browser-based teaching tool for the Linux permission model — the owner/group/others triad, octal and symbolic notation, ownership, ACLs, and the SUID/SGID/sticky special bits.</p>
+          <p data-i18n="about.p2">It includes a permission simulator, a fake filesystem, a simulated terminal, 19 learning topics, 10 guided labs, 80 challenges, and a 100-question quiz. Everything is simulated — nothing here touches a real file, shell, or system.</p>
+          <p class="text-tertiary" style="font-size:0.85rem" data-i18n="about.p4">This project focuses on defensive understanding of permissions and does not include or endorse any offensive or exploitation tooling.</p>
+        </div>
+
+        <div class="panel stack" style="max-width:720px;margin-bottom:var(--space-5)">
+          <div class="panel-title" style="margin-bottom:0"><span class="dot"></span> <span data-i18n="about.missionTitle">Educational mission</span></div>
+          <p data-i18n="about.mission">Most people learn chmod by copy-pasting a number they half-understand. This project exists to close that gap — to make the permission model something you can see change in real time, break safely, and rebuild from first principles, whether that's flipping a single bit in the Simulator or working through the Expert-tier capstone audit.</p>
+          <div class="panel-title" style="margin-bottom:0;margin-top:var(--space-3)"><span class="dot"></span> <span data-i18n="about.ossTitle">Open-source philosophy</span></div>
+          <p data-i18n="about.oss">The whole project is MIT-licensed and dependency-free by design — no build step, no bundler, no framework lock-in. Anyone should be able to read every line of source, fork it, and deploy their own copy to GitHub Pages in minutes.</p>
+          <div class="panel-title" style="margin-bottom:0;margin-top:var(--space-3)"><span class="dot"></span> <span data-i18n="about.roadmapTitle">Roadmap</span></div>
+          <ul>
+            <li>Symlink and hard-link permission scenarios in the Filesystem module</li>
+            <li>Exportable/shareable JSON progress and certificate verification</li>
+            <li>A guided "path" mode that sequences Learn → Labs → Challenges → Quiz per topic</li>
+            <li>Full Arabic translation of the remaining cheat-sheet prose and terminal help text</li>
+          </ul>
+        </div>
+
+        <div class="panel stack" style="max-width:720px">
+          <div class="panel-title" style="margin-bottom:0"><span class="dot"></span> <span data-i18n="about.authorTitle">About the author</span></div>
+          <p><span data-i18n="about.authorLine">Linux Permission Lab is created and maintained by</span> <strong>0x0MAr</strong>.</p>
+          <div class="author-social author-social-lg">
+            <a class="btn btn-ghost btn-sm" href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.11 2.91.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.05 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.79-4.57 5.04.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
+              GitHub
+            </a>
+            <a class="btn btn-ghost btn-sm" href="https://x.com/_7pwn" target="_blank" rel="noopener noreferrer">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.9l-5.4-6.9L4.4 22H1.3l8.1-9.3L1 2h7l4.9 6.3L18.9 2Zm-1.2 18h1.9L7.4 4h-2L17.7 20Z"/></svg>
+              X / Twitter
+            </a>
+            <a class="btn btn-ghost btn-sm" href="https://instagram.com/0xfuz" target="_blank" rel="noopener noreferrer">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1"/></svg>
+              Instagram
+            </a>
+            <a class="btn btn-ghost btn-sm" href="https://instagram.com/_7pwn" target="_blank" rel="noopener noreferrer">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1"/></svg>
+              Instagram (alt)
+            </a>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ========================= CHALLENGE MODAL ========================= -->
+<div class="modal-overlay" id="challenge-modal-overlay">
+  <div class="modal" id="challenge-modal" role="dialog" aria-modal="true" aria-label="Challenge"></div>
+</div>
+
+<!-- ========================= LABS MODAL ========================= -->
+<div class="modal-overlay" id="labs-modal-overlay">
+  <div class="modal" id="labs-modal" role="dialog" aria-modal="true" aria-label="Lab"></div>
+</div>
+
+<!-- ========================= JS-BLOCKED FALLBACK NOTICE ========================= -->
+<div id="module-blocked-banner" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(8,10,10,0.92);align-items:center;justify-content:center;padding:24px;">
+  <div style="max-width:520px;background:#12181a;border:1px solid #33403f;border-radius:16px;padding:28px 32px;font-family:'Inter',sans-serif;color:#eef2f1;">
+    <h2 style="font-family:'Space Grotesk',sans-serif;color:#ffb000;margin:0 0 12px;font-size:1.3rem;">This page needs a local server</h2>
+    <p style="color:#a9b6b5;line-height:1.6;margin:0 0 14px;">You most likely opened <code>index.html</code> directly (a <code>file://</code> address). Browsers like Chrome block ES module scripts from loading over <code>file://</code> for security reasons, so the app's JavaScript never starts.</p>
+    <p style="color:#a9b6b5;line-height:1.6;margin:0 0 14px;">Fix: serve the folder with any static server, then open the <code>http://</code> address it prints. For example, from inside the project folder:</p>
+    <pre style="background:#080a0b;border:1px solid #232d30;border-radius:8px;padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:0.82rem;color:#ffcf5c;overflow-x:auto;margin:0 0 14px;">python3 -m http.server 8080
+# or: npx serve .</pre>
+    <p style="color:#6f8180;font-size:0.82rem;margin:0;">Then visit http://localhost:8080 — Firefox and Safari are more lenient about file:// modules, but a local server is the reliable fix everywhere, including GitHub Pages deployment.</p>
+  </div>
+</div>
+<script>
+  // Non-module script: runs even when type="module" scripts are blocked by the
+  // browser's file:// CORS policy. If app.js hasn't flagged itself ready after
+  // a short delay, assume modules were blocked and show the fallback notice.
+  setTimeout(function () {
+    if (document.documentElement.dataset.appReady !== "true") {
+      document.getElementById("module-blocked-banner").style.display = "flex";
+    }
+  }, 900);
+</script>
+<script type="module" src="assets/js/app.js"></script>
+</body>
+</html>
