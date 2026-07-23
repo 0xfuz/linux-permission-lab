@@ -4,7 +4,7 @@
 
 No backend. No database. No login. No build step. Open `index.html` and it runs.
 
-**[Live demo →](#)** *(replace with your GitHub Pages URL after deploying)*
+**[Live demo →]([#](https://0xfuz.github.io/linux-permission-lab/))** *(replace with your GitHub Pages URL after deploying)*
 
 ![Linux Permission Lab hero screenshot placeholder](docs/screenshots/hero.png)
 
