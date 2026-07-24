@@ -189,9 +189,9 @@ Released under the [MIT License](LICENSE) — free to use, modify and deploy for
 
 ## Credits
 
-**Created by [0x0MAr](https://github.com/0x0Mr)**
+**Created by [0x0MAr](https://github.com/0xfuz)**
 
-- GitHub: [github.com/0x0Mr](https://github.com/0x0Mr)
+- GitHub: [github.com/0xfuz](https://github.com/0xfuz)
 - X / Twitter: [x.com/_7pwn](https://x.com/_7pwn)
 - Instagram: [instagram.com/0xfuz](https://instagram.com/0xfuz) · [instagram.com/_7pwn](https://instagram.com/_7pwn)
 
