@@ -204,8 +204,8 @@ export function initSimulator() {
 
   onFilesystemSelect((node) => {
     state = octalToState(node.octal, node.isDir);
-    currentFilename = node.path;
-    currentContext = { isSensitive: !!node.sensitive };
+    currentFilename = node.isSymlink ? `${node.path} -> ${node.target}` : node.path;
+    currentContext = { isSensitive: !!node.sensitive, isSymlink: !!node.isSymlink, symlinkTarget: node.target, hasAcl: !!(node.acl && node.acl.length) };
     render();
   });
   initFilesystem();

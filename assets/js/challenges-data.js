@@ -1,6 +1,6 @@
 /**
  * challenges-data.js
- * Pure data for Module 7 — Challenges (expanded in v2.1 to 80 labs: 20 each
+ * Pure data for Module 7 — Challenges (expanded in v2.3 to 88 labs: 22 each
  * across Beginner, Intermediate, Advanced and Expert). Kept separate from
  * challenges.js so the data can grow without touching rendering/grading logic.
  *
@@ -93,6 +93,14 @@ export const CHALLENGES = [
     "A documentation folder that any user should be able to browse and open files from, but only you should be able to add or remove files.",
     "755", ["Owner: full control including execute.", "Group and others: read + execute, no write.", "Standard directory-sharing mode."],
     "755 is to directories what 644 is to files — the default 'public read, owner write' shape."),
+  c("b21", "Beginner", 50, "Prep a config file before locking it with chattr", "etc/dns/resolver.conf",
+    "You're about to run `chattr +i` on this DNS resolver config so nothing can silently overwrite it. Before that, its base mode still needs to be correct on its own: owner read/write, group and others read-only.",
+    "644", ["chattr is a separate layer on top of normal permissions, not a replacement for setting them correctly.", "Owner rw-, group r--, others r-- — a plain readable config file.", "The immutable bit comes after this step, not instead of it."],
+    "644 is the standard mode for a config file everyone should be able to read but only the owner edits — chattr +i then adds a second, stronger layer of protection on top."),
+  c("b22", "Beginner", 50, "Script invoked only through sudo", "usr/local/sbin/restart-service.sh",
+    "A maintenance script that regular users trigger exclusively through a sudoers entry (never run directly). It should be readable and executable by its owner and the admin group, with no access for anyone else.",
+    "750", ["Owner: full control.", "Group (admins): read + execute so they can review and run it, no write.", "Others: nothing — access to this script is meant to be gated by sudo, not by loose file permissions."],
+    "750 keeps the script itself tightly scoped even though sudo is the actual access-control mechanism in front of it — defense in depth, not either/or."),
 
   // ───────────────────────── Intermediate (20) — 100 XP each ─────────────────────────
   c("i01", "Intermediate", 100, "Web app database config", "config/database.yml",
@@ -175,6 +183,14 @@ export const CHALLENGES = [
     "A system cron drop-in file. The cron daemon (running as root) needs to read it; regular users on the box shouldn't be able to see what jobs are scheduled.",
     "644", ["This one is actually meant to be world-readable in most distros' conventions — but confirm against your threat model.", "Owner: read + write.", "Group and others: read only, unless your policy says otherwise, in which case 640 is the tighter answer."],
     "Real-world cron.d permissions vary by distribution; 644 matches Debian/Ubuntu defaults, while more security-conscious setups tighten it to 640 — both are defensible depending on context."),
+  c("i21", "Intermediate", 100, "Base mode before an ACL grant", "opt/app/config/app.yml",
+    "This app config holds API keys. A monitoring service account needs read access to it, but you've decided to grant that with a single ACL entry instead of adding the account to the owning group. Before running setfacl, get the base mode right on its own.",
+    "640", ["The ACL entry is additive on top of correct base bits, not a substitute for them.", "Owner: read + write.", "Group: read-only. Others: nothing."],
+    "640 is the correct base regardless of the ACL — owner read/write, group read-only, others nothing. The monitoring account's access comes entirely from its own ACL entry layered on top, not from the base group bits."),
+  c("i22", "Intermediate", 100, "Fix the real target behind a symlink", "var/log/auth.log",
+    "A symlink elsewhere on the system points at this authentication log. The link itself always shows as a cosmetic 777 — that's normal and not the thing to fix. This file, the actual target, needs the correct restrictive mode: owner root read/write, the adm group read-only, others nothing.",
+    "640", ["Ignore the symlink's own permission bits entirely — they're never checked by the kernel.", "Owner: read + write. Group (adm): read-only.", "Others: nothing — this is an authentication log."],
+    "The whole point of this exercise is realizing the symlink's 777 is a red herring — access is governed entirely by this target file's own mode, which should be a tight 640."),
 
   // ───────────────────────── Advanced (20) — 150 XP each ─────────────────────────
   c("a01", "Advanced", 150, "Reproduce /usr/bin/passwd", "usr/bin/passwd",
@@ -257,6 +273,14 @@ export const CHALLENGES = [
     "The worst possible combination: a SUID-root binary that's also world-writable, meaning any user could replace it with malicious code that then runs as root. Fix both problems at once with a safe standard mode.",
     "755", ["World-writable + SUID root is a critical, actively exploitable misconfiguration.", "The immediate fix is to remove both the SUID bit and world-write access.", "Target: plain 755, matching a normal shared executable with no special privilege."],
     "This exact combination — world-writable plus SUID root — is one of the most classic privilege-escalation vectors in Linux security auditing; any scanner worth using flags it immediately."),
+  c("a21", "Advanced", 150, "Base mode for a resolver about to go immutable", "etc/resolv.conf",
+    "A rogue script keeps silently rewriting DNS settings. You're about to run `chattr +i` to stop that permanently — but that only protects the file from being modified, not from being read by processes that shouldn't need write access anyway. Set the correct base mode first: owner read/write, group and others read-only.",
+    "644", ["chattr +i comes after this fix, as a second layer — get the base bits right independent of it.", "Owner rw-, group r--, others r--.", "A resolver config is meant to be widely readable, just not widely writable."],
+    "644 is correct here regardless of the immutable bit — chattr +i then adds kernel-level enforcement against modification on top of an already-sensible base mode, rather than replacing the need for one."),
+  c("a22", "Advanced", 150, "Base mode before a per-engineer ACL grant", "srv/ops/deploy.sh",
+    "A shared deploy script's group shouldn't change, but one specific engineer on a different team needs to be able to run it. You'll grant that with a targeted ACL entry. Set the base mode first: owner full control, group read + execute, others nothing.",
+    "750", ["The ACL grant for the individual engineer comes after this, as a separate setfacl -m entry.", "Owner: rwx. Group: r-x.", "Others: nothing — access outside the owning group and the one ACL grant should not exist."],
+    "750 is the correct foundation independent of the ACL — the targeted engineer's access lives entirely in their own ACL entry, not in loosened base bits that would apply to everyone."),
 
   // ───────────────────────── Expert (20) — 200 XP each ─────────────────────────
   c("e01", "Expert", 200, "Reproduce /tmp exactly", "tmp",
@@ -339,4 +363,12 @@ export const CHALLENGES = [
     "The single worst realistic misconfiguration this lab covers: a SUID-root binary that is also world-writable. Any local user could overwrite it with arbitrary code that then executes as root the next time anyone runs it. Fix it completely.",
     "755", ["This combines the Advanced-tier a20 scenario with everything you've learned about special bits.", "The fix removes the SUID bit entirely and removes world-write access.", "Target: plain 755 — a normal, safely shared executable with zero special privilege."],
     "This capstone deliberately repeats the lab's most important lesson one final time: SUID root plus world-writable is the single most dangerous permission combination in the entire Linux permission model, and spotting it should become automatic."),
+  c("e21", "Expert", 200, "Reproduce a sudoers.d drop-in file", "etc/sudoers.d/app-deploy",
+    "A per-application sudo override file inside /etc/sudoers.d/. Edits always go through visudo, which validates syntax before writing — nothing should be reading or writing this file outside that flow, including at runtime. Root needs read access to enforce the rules; nobody else needs anything.",
+    "440", ["Owner and group: read-only, nothing more — not even root writes to it directly at runtime.", "Others: nothing whatsoever.", "This matches the real-world convention for files under /etc/sudoers.d/."],
+    "440 is the actual convention sudo itself expects for files in this directory — read-only for owner and group, zero access for others, and no write bit for anyone since visudo is the only sanctioned way to change it."),
+  c("e22", "Expert", 200, "Base mode for an about-to-be-immutable backup", "var/backups/resolv.conf.bak", // a backed-up config
+    "A known-good backup of a critical DNS config, kept specifically so it can never be silently corrupted — you're about to chattr +i it as a final safeguard. Before that, its base mode should already reflect that it's a reference copy: owner and group read-only, others nothing.",
+    "440", ["chattr +i is the last step, not a substitute for a correct base mode.", "Owner: read-only — even the owner shouldn't casually edit a reference backup.", "Group: read-only. Others: nothing."],
+    "440 read-only-even-for-the-owner reflects that this file's whole purpose is to never change casually; chattr +i then makes that intent unbreakable at the kernel level, closing the loop with the earlier resolv.conf challenges in this lab."),
 ];

@@ -1,8 +1,8 @@
 /**
  * challenges.js
  * Module 7 — Challenges (rendering + grading logic).
- * Data lives in challenges-data.js (80 labs across 4 tiers) so this file
- * stays focused on UI and progress tracking. Progress persists to
+ * Data lives in challenges-data.js (88 labs across 4 tiers, as of v2.3) so
+ * this file stays focused on UI and progress tracking. Progress persists to
  * localStorage via utils.js, and every completion notifies the shared
  * progress event bus so Achievements/Progress views can react. v2.2 adds
  * Arabic localization via challenges-data.ar.js merged in per-id.
@@ -185,7 +185,7 @@ function checkAnswer() {
     qs("#challenge-explanation")?.replaceChildren(explanationNode(currentChallenge));
     toast(`+${currentChallenge.xp} XP`, "success");
   } else {
-    feedback.innerHTML = `<span style="color:var(--warn-500)">${t("ch.checkAnswer") === "Check answer" ? "Not quite — try again, or reveal a hint." : "ليست صحيحة تمامًا — حاول مجددًا أو اطّلع على تلميح."}</span>`;
+    feedback.innerHTML = `<span style="color:var(--warn-500)">${t("ch.notQuite")}</span>`;
   }
 }
 

@@ -42,10 +42,26 @@ export function t(key) {
   return dict[key] ?? DICT.en[key] ?? key;
 }
 
-/** Merge an Arabic overlay (keyed by id) onto an English array when locale is 'ar'. */
-export function localize(items, overlay) {
+/**
+ * Merge an Arabic overlay (keyed by id) onto an English array when locale is 'ar'.
+ * Every other content type (Learn, Challenges, Quiz) is flat and this plain
+ * shallow merge is all they need. Pass `nestedArrayKey` (e.g. "steps") for
+ * content shaped like Labs, where the overlay itself needs to merge a
+ * nested array element-by-element rather than being spread wholesale —
+ * without it, an overlay's partial `steps` overrides would clobber the
+ * rest of each step instead of merging into it.
+ */
+export function localize(items, overlay, { nestedArrayKey } = {}) {
   if (locale !== "ar" || !overlay) return items;
-  return items.map((item) => (overlay[item.id] ? { ...item, ...overlay[item.id] } : item));
+  return items.map((item) => {
+    const ov = overlay[item.id];
+    if (!ov) return item;
+    if (nestedArrayKey && Array.isArray(item[nestedArrayKey]) && Array.isArray(ov[nestedArrayKey])) {
+      const merged = item[nestedArrayKey].map((entry, i) => ({ ...entry, ...(ov[nestedArrayKey][i] || {}) }));
+      return { ...item, ...ov, [nestedArrayKey]: merged };
+    }
+    return { ...item, ...ov };
+  });
 }
 
 export function applyStaticTranslations() {
@@ -83,22 +99,42 @@ const DICT = {
     "home.feature.sim.title": "Permission Simulator",
     "home.feature.sim.desc": "Toggle owner, group and others like LED switches and watch symbolic, octal, binary and the chmod command update instantly.",
     "home.feature.fs.title": "Fake Filesystem",
-    "home.feature.fs.desc": "59 realistic files across /etc, /var, /opt, /usr, /tmp, /home and /root — click through real-world permission mistakes.",
+    "home.feature.fs.desc": "59 realistic files plus 2 symlinks across /etc, /var, /opt, /usr, /tmp, /home and /root — click through real-world permission mistakes.",
     "home.feature.term.title": "Terminal Simulator",
     "home.feature.term.desc": "20+ simulated commands — ls, chmod, chown, find, grep, tree, stat and more — over a safe, fake shell.",
-    "home.feature.learn.title": "19 Learning Cards",
+    "home.feature.learn.title": "21 Learning Cards",
     "home.feature.learn.desc": "Every core topic — chmod, chown, umask, ACLs, special bits and more — with diagrams, examples, and warnings.",
-    "home.feature.labs.title": "10 Interactive Labs",
+    "home.feature.labs.title": "11 Interactive Labs",
     "home.feature.labs.desc": "Guided, multi-step walkthroughs — from securing an SSH key to a full capstone permission audit.",
-    "home.feature.challenges.title": "80 Challenges",
+    "home.feature.challenges.title": "88 Challenges",
     "home.feature.challenges.desc": "Twenty each across Beginner, Intermediate, Advanced and Expert — earn XP and level up as you go.",
-    "home.feature.quiz.title": "100-Question Quiz",
+    "home.feature.quiz.title": "113-Question Quiz",
     "home.feature.quiz.desc": "Multiple-choice rounds across every topic, with instant explanations and lifetime accuracy tracking.",
     "home.feature.security.title": "Security Analyzer",
     "home.feature.security.desc": "Every permission state is graded Safe, Warning or Critical with a plain-language explanation of why.",
     "home.feature.xp.title": "XP, Levels & Achievements",
     "home.feature.xp.desc": "12 unlockable achievements, level progression, and a printable certificate once you clear the curriculum.",
-    "home.footerNote": "Linux Permission Lab v2.2 · Educational simulation, no real shell execution",
+    "home.footerNote": "Linux Permission Lab v2.3 · Educational simulation, no real shell execution",
+
+    "hero.stats.topics": "Learn topics",
+    "hero.stats.quiz": "Quiz questions",
+
+    "home.how.eyebrow": "How it works",
+    "home.how.heading": "Three steps, in order",
+    "home.how.step1.title": "Learn",
+    "home.how.step1.desc": "Work through 21 topic cards — diagrams, examples, tips and warnings for every core concept.",
+    "home.how.step2.title": "Practice",
+    "home.how.step2.desc": "Apply it in 11 guided Labs and 88 tiered Challenges against a realistic fake filesystem.",
+    "home.how.step3.title": "Prove it",
+    "home.how.step3.desc": "Clear the 113-question Quiz, unlock every achievement, and print a certificate once it's done.",
+
+    "footer.tagline": "A browser-only playground for the Linux permission model. No backend, no login, no build step.",
+    "footer.col.product": "Product",
+    "footer.col.learn": "Learn",
+    "footer.col.project": "Project",
+    "footer.sourceLink": "Source on GitHub",
+    "footer.licenseLink": "MIT License",
+    "footer.topicsLink": "21 topics",
 
     "sim.eyebrow": "Module 01 · 02 · 05 · 06", "sim.title": "Permission Simulator",
     "sim.desc": "Pick a file from the fake filesystem, or build permissions from scratch. Every toggle updates the live output and the security analysis below.",
@@ -116,29 +152,31 @@ const DICT = {
     "calc.result": "Result", "calc.copyChmod": "Copy as chmod command",
 
     "term.eyebrow": "Module 03", "term.title": "Terminal Simulator",
-    "term.desc": "A simulated shell over the same fake filesystem. Try ls -la, tree, find shadow, stat backup.sql, or chmod 600 backup.sql. Type help for the full command list.",
+    "term.desc": "A simulated shell over the same fake filesystem. Try ls -la, tree, find shadow, stat backup.sql, chmod 600 backup.sql, or getfacl /opt/app/config/app.yml. Type help for the full command list.",
 
     "learn.eyebrow": "Module 09 · New", "learn.title": "Learn",
-    "learn.desc": "19 reference topics covering the full permission model — each with a diagram, an example, command references, tips and warnings.",
+    "learn.desc": "21 reference topics covering the full permission model — each with a diagram, an example, command references, tips and warnings.",
     "learn.searchPlaceholder": "Search topics, e.g. SUID or umask",
     "learn.expandAll": "Expand all", "learn.collapseAll": "Collapse all",
     "learn.example": "Example", "learn.commands": "Command examples", "learn.tips": "Tips", "learn.warnings": "Warnings",
+    "learn.readLabel": "Read",
 
     "labs.eyebrow": "Module 10 · New", "labs.title": "Interactive Labs",
-    "labs.desc": "Ten guided, multi-step walkthroughs — each mixes short explanations with graded checkpoints, from a first SSH key fix to a full capstone audit.",
+    "labs.desc": "Eleven guided, multi-step walkthroughs — each mixes short explanations with graded checkpoints, from a first SSH key fix to a full capstone audit.",
     "labs.startLab": "Start lab", "labs.review": "Review", "labs.steps": "steps",
     "labs.showHint": "Show hint", "labs.checkAnswer": "Check answer", "labs.continue": "Continue", "labs.finishLab": "Finish lab", "labs.done": "Done",
     "labs.explanation": "Explanation", "labs.correct": "Correct.", "labs.incorrect": "Not quite — try again, or reveal the hint.",
 
     "ch.eyebrow": "Module 07", "ch.title": "Challenges",
-    "ch.desc": "80 labs across four tiers — Beginner, Intermediate, Advanced and Expert. Type the octal mode that solves each scenario and earn XP.",
+    "ch.desc": "88 labs across four tiers — Beginner, Intermediate, Advanced and Expert. Type the octal mode that solves each scenario and earn XP.",
     "ch.random": "🎲 Random challenge", "ch.attempt": "Attempt", "ch.review": "Review", "ch.target": "target",
     "ch.tier.All": "All", "ch.tier.Beginner": "Beginner", "ch.tier.Intermediate": "Intermediate", "ch.tier.Advanced": "Advanced", "ch.tier.Expert": "Expert",
     "ch.scenario": "Scenario", "ch.yourAnswer": "Your answer — octal mode", "ch.showHint": "Show hint", "ch.checkAnswer": "Check answer",
+    "ch.notQuite": "Not quite — try again, or reveal a hint.",
     "ch.whyWorks": "Why this works", "ch.empty": "No challenges in this tier.",
 
     "quiz.eyebrow": "Module 08 · New", "quiz.title": "Quiz",
-    "quiz.desc": "100 multiple-choice questions across every topic. Rounds are 10 questions — filter by topic or mix them all.",
+    "quiz.desc": "113 multiple-choice questions across every topic. Rounds are 10 questions — filter by topic or mix them all.",
     "quiz.question": "Question", "quiz.score": "Score", "quiz.correct": "Correct", "quiz.notQuite": "Not quite",
     "quiz.nextQuestion": "Next question", "quiz.seeResults": "See results", "quiz.roundComplete": "Round complete",
     "quiz.perfect": "Perfect score — nice work.", "quiz.solid": "Solid round. Review the topics you missed in the Learn module.",
@@ -160,14 +198,21 @@ const DICT = {
     "progress.challengesCompleted": "Challenges completed", "progress.labsCompleted": "Labs completed",
     "progress.roundsPlayed": "Quiz rounds played", "progress.quizAccuracy": "Quiz accuracy", "progress.bestQuizRound": "Best quiz round",
     "progress.achievements": "Achievements", "progress.certificate": "Certificate of Completion",
-    "progress.certLocked": "Locked — complete all 80 challenges and all 10 labs to unlock your certificate. Currently at",
+    "progress.certLocked": "Locked — complete all 88 challenges and all 11 labs to unlock your certificate. Currently at",
     "progress.certUnlockedLine1": "This certifies the completion of every challenge and interactive lab in the curriculum —",
-    "progress.certUnlockedLine2": "80/80 challenges · 10/10 labs · awarded by your own browser's local progress, not a registrar.",
+    "progress.certUnlockedLine2": "88/88 challenges · 11/11 labs · awarded by your own browser's local progress, not a registrar.",
     "progress.printCert": "Print certificate", "progress.earned": "Earned", "progress.locked": "Locked",
+    "progress.share.title": "Share your progress",
+    "progress.share.desc": "Copy a one-line summary to share, or download a JSON snapshot of your XP, completion and achievements — everything stays local until you choose to share it.",
+    "progress.share.copyBtn": "Copy summary", "progress.share.downloadBtn": "Download JSON",
+    "progress.share.exportSuccess": "Progress exported as JSON", "progress.share.exportError": "Couldn't generate the export — try again",
+    "path.title": "Your Path", "path.desc": "A suggested order through the whole lab: read every topic, then prove it in Labs, Challenges and a Quiz round.",
+    "path.continue": "Continue:", "path.quizDone": "Played", "path.quizTodo": "Not played yet",
+    "path.allDone": "Path complete — every topic read, every Lab and Challenge done, and a Quiz round played.",
 
     "about.eyebrow": "About", "about.title": "What this is, and isn't",
     "about.p1": "Linux Permission Lab is a browser-based teaching tool for the Linux permission model — the owner/group/others triad, octal and symbolic notation, ownership, ACLs, and the SUID/SGID/sticky special bits.",
-    "about.p2": "It includes a permission simulator, a fake filesystem, a simulated terminal, 19 learning topics, 10 guided labs, 80 challenges, and a 100-question quiz. Everything is simulated — nothing here touches a real file, shell, or system.",
+    "about.p2": "It includes a permission simulator, a fake filesystem, a simulated terminal, 21 learning topics, 11 guided labs, 88 challenges, and a 113-question quiz. Everything is simulated — nothing here touches a real file, shell, or system.",
     "about.p4": "This project focuses on defensive understanding of permissions and does not include or endorse any offensive or exploitation tooling.",
     "about.missionTitle": "Educational mission",
     "about.mission": "Most people learn chmod by copy-pasting a number they half-understand. This project exists to close that gap — to make the permission model something you can see change in real time, break safely, and rebuild from first principles, whether that's flipping a single bit in the Simulator or working through the Expert-tier capstone audit.",
@@ -183,11 +228,12 @@ const DICT = {
     "topic.All": "All", "topic.Permissions": "Permissions", "topic.chmod": "chmod", "topic.Octal": "Octal",
     "topic.Binary": "Binary", "topic.SUID": "SUID", "topic.SGID": "SGID", "topic.Sticky Bit": "Sticky Bit",
     "topic.Security": "Security", "topic.umask": "umask", "topic.ACL": "ACL", "topic.chown": "chown",
+    "topic.Symlinks": "Symlinks", "topic.chattr": "chattr", "topic.su-vs-sudo": "su vs sudo",
 
     "ach.first-steps.title": "First chmod", "ach.first-steps.desc": "Complete your first challenge.",
     "ach.linux-apprentice.title": "Linux Apprentice", "ach.linux-apprentice.desc": "Complete every Beginner challenge.",
     "ach.challenge-hunter.title": "Challenge Hunter", "ach.challenge-hunter.desc": "Complete 10 or more challenges.",
-    "ach.permission-master.title": "Permission Master", "ach.permission-master.desc": "Complete all 80 challenges.",
+    "ach.permission-master.title": "Permission Master", "ach.permission-master.desc": "Complete all 88 challenges.",
     "ach.suid-explorer.title": "SUID Explorer", "ach.suid-explorer.desc": "Complete 5 or more SUID-related challenges.",
     "ach.special-bits-master.title": "Special Bits Master", "ach.special-bits-master.desc": "Complete every Expert-tier challenge.",
     "ach.quiz-rookie.title": "Quiz Rookie", "ach.quiz-rookie.desc": "Complete your first quiz round.",
@@ -195,6 +241,7 @@ const DICT = {
     "ach.quiz-whiz.title": "Binary Expert", "ach.quiz-whiz.desc": "Answer 50 quiz questions correctly (lifetime).",
     "ach.lab-graduate.title": "Lab Graduate", "ach.lab-graduate.desc": "Complete all 10 interactive labs.",
     "ach.well-rounded.title": "Well Rounded", "ach.well-rounded.desc": "Complete a challenge, a quiz round, and a lab.",
+    "ach.path-complete.title": "Path Complete", "ach.path-complete.desc": "Read every Learn topic and finish every Lab, Challenge and at least one Quiz round.",
     "ach.permission-legend.title": "Permission Legend", "ach.permission-legend.desc": "Earn every other achievement.",
   },
 
@@ -219,22 +266,42 @@ const DICT = {
     "home.feature.sim.title": "محاكي الصلاحيات",
     "home.feature.sim.desc": "بدّل بين المالك والمجموعة والآخرين مثل مفاتيح إضاءة، وشاهد الصيغة الرمزية والثُمانية والثنائية وأمر chmod تتحدث فورًا.",
     "home.feature.fs.title": "نظام ملفات وهمي",
-    "home.feature.fs.desc": "59 ملفًا واقعيًا عبر /etc و/var و/opt و/usr و/tmp و/home و/root — تصفّح أخطاء الصلاحيات الشائعة في الواقع.",
+    "home.feature.fs.desc": "59 ملفًا واقعيًا بالإضافة إلى رابطين رمزيين عبر /etc و/var و/opt و/usr و/tmp و/home و/root — تصفّح أخطاء الصلاحيات الشائعة في الواقع.",
     "home.feature.term.title": "محاكي الطرفية",
     "home.feature.term.desc": "أكثر من 20 أمرًا محاكى — ls و chmod و chown و find و grep و tree و stat وغيرها — على واجهة آمنة وهمية.",
-    "home.feature.learn.title": "19 بطاقة تعليمية",
+    "home.feature.learn.title": "21 بطاقة تعليمية",
     "home.feature.learn.desc": "كل موضوع أساسي — chmod و chown و umask وقوائم ACL والبتات الخاصة وغيرها — مع رسوم توضيحية وأمثلة وتحذيرات.",
-    "home.feature.labs.title": "10 مختبرات تفاعلية",
+    "home.feature.labs.title": "11 مختبرًا تفاعليًا",
     "home.feature.labs.desc": "خطوات إرشادية متعددة المراحل — من تأمين مفتاح SSH إلى تدقيق شامل ختامي للصلاحيات.",
-    "home.feature.challenges.title": "80 تحديًا",
+    "home.feature.challenges.title": "88 تحديًا",
     "home.feature.challenges.desc": "عشرون تحديًا في كل مستوى: مبتدئ، متوسط، متقدم، وخبير — اكسب نقاط الخبرة وارتقِ بمستواك.",
-    "home.feature.quiz.title": "اختبار من 100 سؤال",
+    "home.feature.quiz.title": "اختبار من 113 سؤالاً",
     "home.feature.quiz.desc": "جولات اختيار من متعدد عبر جميع المواضيع، مع تفسيرات فورية وتتبّع لدقة إجاباتك على المدى الطويل.",
     "home.feature.security.title": "محلل الأمان",
     "home.feature.security.desc": "كل حالة صلاحيات تُصنَّف آمنة أو تحذيرية أو حرجة مع شرح مبسّط لسبب ذلك.",
     "home.feature.xp.title": "نقاط الخبرة والمستويات والإنجازات",
     "home.feature.xp.desc": "12 إنجازًا قابلًا للفتح، وتطوّر بالمستوى، وشهادة قابلة للطباعة بعد إتمام المنهج كاملًا.",
-    "home.footerNote": "مختبر صلاحيات لينكس v2.2 · محاكاة تعليمية، بدون تنفيذ أوامر حقيقية",
+    "home.footerNote": "مختبر صلاحيات لينكس v2.3 · محاكاة تعليمية، بدون تنفيذ أوامر حقيقية",
+
+    "hero.stats.topics": "مواضيع تعليمية",
+    "hero.stats.quiz": "أسئلة الاختبار",
+
+    "home.how.eyebrow": "كيف يعمل المشروع",
+    "home.how.heading": "ثلاث خطوات، بالترتيب",
+    "home.how.step1.title": "تعلّم",
+    "home.how.step1.desc": "تصفّح 21 بطاقة موضوعية — رسوم توضيحية وأمثلة ونصائح وتحذيرات لكل مفهوم أساسي.",
+    "home.how.step2.title": "تدرّب",
+    "home.how.step2.desc": "طبّق ما تعلمته في 11 مختبرًا إرشاديًا و88 تحديًا متدرجًا على نظام ملفات وهمي واقعي.",
+    "home.how.step3.title": "أثبت فهمك",
+    "home.how.step3.desc": "أنهِ اختبار الـ113 سؤالاً، وافتح كل الإنجازات، واطبع شهادتك بعد إكمال المنهج.",
+
+    "footer.tagline": "ساحة تفاعلية داخل المتصفح فقط لفهم نظام صلاحيات لينكس. بدون خادم، بدون تسجيل دخول، بدون خطوة بناء.",
+    "footer.col.product": "المنتج",
+    "footer.col.learn": "تعلّم",
+    "footer.col.project": "المشروع",
+    "footer.sourceLink": "الكود المصدري على GitHub",
+    "footer.licenseLink": "رخصة MIT",
+    "footer.topicsLink": "21 موضوعًا",
 
     "sim.eyebrow": "الوحدة 01 · 02 · 05 · 06", "sim.title": "محاكي الصلاحيات",
     "sim.desc": "اختر ملفًا من نظام الملفات الوهمي، أو ابنِ الصلاحيات من الصفر. كل تبديل يحدّث المخرجات الحية وتحليل الأمان أدناه فورًا.",
@@ -252,29 +319,31 @@ const DICT = {
     "calc.result": "النتيجة", "calc.copyChmod": "نسخ كأمر chmod",
 
     "term.eyebrow": "الوحدة 03", "term.title": "محاكي الطرفية",
-    "term.desc": "واجهة طرفية محاكاة فوق نفس نظام الملفات الوهمي. جرّب ls -la أو tree أو find shadow أو stat backup.sql أو chmod 600 backup.sql. اكتب help لعرض كل الأوامر.",
+    "term.desc": "واجهة طرفية محاكاة فوق نفس نظام الملفات الوهمي. جرّب ls -la أو tree أو find shadow أو stat backup.sql أو chmod 600 backup.sql أو getfacl /opt/app/config/app.yml. اكتب help لعرض كل الأوامر.",
 
     "learn.eyebrow": "الوحدة 09 · جديد", "learn.title": "تعلّم",
-    "learn.desc": "19 موضوعًا مرجعيًا يغطي نموذج الصلاحيات بالكامل — لكل موضوع رسم توضيحي ومثال وأوامر مرجعية ونصائح وتحذيرات.",
+    "learn.desc": "21 موضوعًا مرجعيًا يغطي نموذج الصلاحيات بالكامل — لكل موضوع رسم توضيحي ومثال وأوامر مرجعية ونصائح وتحذيرات.",
     "learn.searchPlaceholder": "ابحث في المواضيع، مثل SUID أو umask",
     "learn.expandAll": "توسيع الكل", "learn.collapseAll": "طيّ الكل",
     "learn.example": "مثال", "learn.commands": "أمثلة الأوامر", "learn.tips": "نصائح", "learn.warnings": "تحذيرات",
+    "learn.readLabel": "مقروء",
 
     "labs.eyebrow": "الوحدة 10 · جديد", "labs.title": "مختبرات تفاعلية",
-    "labs.desc": "عشرة مسارات إرشادية متعددة الخطوات — كل مسار يمزج شروحات مختصرة مع نقاط تحقق مُقيَّمة، من إصلاح أول مفتاح SSH إلى تدقيق ختامي شامل.",
+    "labs.desc": "أحد عشر مسارًا إرشاديًا متعدد الخطوات — كل مسار يمزج شروحات مختصرة مع نقاط تحقق مُقيَّمة، من إصلاح أول مفتاح SSH إلى تدقيق ختامي شامل.",
     "labs.startLab": "ابدأ المختبر", "labs.review": "مراجعة", "labs.steps": "خطوات",
     "labs.showHint": "إظهار تلميح", "labs.checkAnswer": "تحقق من الإجابة", "labs.continue": "متابعة", "labs.finishLab": "إنهاء المختبر", "labs.done": "تم",
     "labs.explanation": "الشرح", "labs.correct": "إجابة صحيحة.", "labs.incorrect": "ليست صحيحة تمامًا — حاول مجددًا أو اطّلع على التلميح.",
 
     "ch.eyebrow": "الوحدة 07", "ch.title": "التحديات",
-    "ch.desc": "80 تحديًا عبر أربعة مستويات: مبتدئ، متوسط، متقدم، وخبير. اكتب الصيغة الثُمانية التي تحل كل سيناريو واكسب نقاط الخبرة.",
+    "ch.desc": "88 تحديًا عبر أربعة مستويات: مبتدئ، متوسط، متقدم، وخبير. اكتب الصيغة الثُمانية التي تحل كل سيناريو واكسب نقاط الخبرة.",
     "ch.random": "🎲 تحدٍّ عشوائي", "ch.attempt": "حاول", "ch.review": "مراجعة", "ch.target": "الهدف",
     "ch.tier.All": "الكل", "ch.tier.Beginner": "مبتدئ", "ch.tier.Intermediate": "متوسط", "ch.tier.Advanced": "متقدم", "ch.tier.Expert": "خبير",
     "ch.scenario": "السيناريو", "ch.yourAnswer": "إجابتك — الصيغة الثُمانية", "ch.showHint": "إظهار تلميح", "ch.checkAnswer": "تحقق من الإجابة",
+    "ch.notQuite": "ليست صحيحة تمامًا — حاول مجددًا أو اطّلع على تلميح.",
     "ch.whyWorks": "لماذا هذا صحيح", "ch.empty": "لا توجد تحديات في هذا المستوى.",
 
     "quiz.eyebrow": "الوحدة 08 · جديد", "quiz.title": "الاختبار",
-    "quiz.desc": "100 سؤال اختيار من متعدد عبر جميع المواضيع. كل جولة 10 أسئلة — صفِّها حسب الموضوع أو اخلطها جميعًا.",
+    "quiz.desc": "113 سؤال اختيار من متعدد عبر جميع المواضيع. كل جولة 10 أسئلة — صفِّها حسب الموضوع أو اخلطها جميعًا.",
     "quiz.question": "سؤال", "quiz.score": "النتيجة", "quiz.correct": "إجابة صحيحة", "quiz.notQuite": "ليست صحيحة تمامًا",
     "quiz.nextQuestion": "السؤال التالي", "quiz.seeResults": "عرض النتائج", "quiz.roundComplete": "انتهت الجولة",
     "quiz.perfect": "نتيجة كاملة — عمل رائع.", "quiz.solid": "جولة جيدة. راجع المواضيع التي أخطأت فيها من خلال وحدة تعلّم.",
@@ -296,14 +365,21 @@ const DICT = {
     "progress.challengesCompleted": "التحديات المكتملة", "progress.labsCompleted": "المختبرات المكتملة",
     "progress.roundsPlayed": "جولات الاختبار الملعوبة", "progress.quizAccuracy": "دقة الاختبار", "progress.bestQuizRound": "أفضل جولة اختبار",
     "progress.achievements": "الإنجازات", "progress.certificate": "شهادة الإتمام",
-    "progress.certLocked": "مقفلة — أكمل جميع التحديات الثمانين وكل المختبرات العشرة لفتح شهادتك. نسبة التقدّم الحالية:",
+    "progress.certLocked": "مقفلة — أكمل جميع الـ88 تحديًا وكل الـ11 مختبرًا لفتح شهادتك. نسبة التقدّم الحالية:",
     "progress.certUnlockedLine1": "تشهد هذه الوثيقة بإتمام جميع التحديات والمختبرات التفاعلية في المنهج —",
-    "progress.certUnlockedLine2": "80/80 تحديًا · 10/10 مختبرات · مُنحت بناءً على تقدّمك المحلي في متصفحك، وليست جهة اعتماد رسمية.",
+    "progress.certUnlockedLine2": "88/88 تحديًا · 11/11 مختبرًا · مُنحت بناءً على تقدّمك المحلي في متصفحك، وليست جهة اعتماد رسمية.",
     "progress.printCert": "طباعة الشهادة", "progress.earned": "مكتسَب", "progress.locked": "مقفل",
+    "progress.share.title": "شارك تقدّمك",
+    "progress.share.desc": "انسخ ملخّصًا من سطر واحد لمشاركته، أو نزّل لقطة JSON لنقاط خبرتك ونسبة إتمامك وإنجازاتك — يبقى كل شيء محليًا في متصفحك حتى تختار مشاركته.",
+    "progress.share.copyBtn": "نسخ الملخّص", "progress.share.downloadBtn": "تنزيل JSON",
+    "progress.share.exportSuccess": "تم تصدير التقدّم بصيغة JSON", "progress.share.exportError": "تعذّر إنشاء ملف التصدير — حاول مجددًا",
+    "path.title": "مسارك", "path.desc": "ترتيب مقترح لخوض المختبر بالكامل: اقرأ كل موضوع، ثم أثبت فهمك في المختبرات والتحديات وجولة اختبار.",
+    "path.continue": "التالي:", "path.quizDone": "تم اللعب", "path.quizTodo": "لم تُلعب بعد",
+    "path.allDone": "اكتمل المسار — قرأت كل موضوع، وأنهيت كل مختبر وتحدٍّ، ولعبت جولة اختبار.",
 
     "about.eyebrow": "حول المشروع", "about.title": "ما هو هذا المشروع، وما ليس هو",
     "about.p1": "مختبر صلاحيات لينكس أداة تعليمية تعمل داخل المتصفح لشرح نموذج صلاحيات لينكس: ثلاثية المالك والمجموعة والآخرين، والصيغتان الثُمانية والرمزية، والملكية، وقوائم ACL، وبتات SUID و SGID واللزوجة الخاصة.",
-    "about.p2": "يضم المشروع محاكي صلاحيات، ونظام ملفات وهمي، وطرفية محاكاة، و19 موضوعًا تعليميًا، و10 مختبرات إرشادية، و80 تحديًا، واختبارًا من 100 سؤال. كل شيء مُحاكى — لا شيء هنا يلمس ملفًا أو نظامًا حقيقيًا.",
+    "about.p2": "يضم المشروع محاكي صلاحيات، ونظام ملفات وهمي، وطرفية محاكاة، و21 موضوعًا تعليميًا، و11 مختبرًا إرشاديًا، و88 تحديًا، واختبارًا من 113 سؤالاً. كل شيء مُحاكى — لا شيء هنا يلمس ملفًا أو نظامًا حقيقيًا.",
     "about.p4": "يركّز هذا المشروع على الفهم الدفاعي للصلاحيات، ولا يتضمن أو يروّج لأي أدوات هجومية أو استغلالية.",
     "about.missionTitle": "الرسالة التعليمية",
     "about.mission": "يتعلم معظم الناس أمر chmod بنسخ رقم لا يفهمونه تمامًا. يهدف هذا المشروع لسد تلك الفجوة — بجعل نموذج الصلاحيات شيئًا يمكنك رؤيته يتغيّر لحظيًا، وكسره بأمان، وإعادة بنائه من الأساس، سواء كان ذلك بتبديل بتة واحدة في المحاكي أو بإتمام تدقيق مستوى الخبير الختامي.",
@@ -319,11 +395,12 @@ const DICT = {
     "topic.All": "الكل", "topic.Permissions": "الصلاحيات", "topic.chmod": "chmod", "topic.Octal": "الثُماني",
     "topic.Binary": "الثنائي", "topic.SUID": "SUID", "topic.SGID": "SGID", "topic.Sticky Bit": "بت اللزوجة",
     "topic.Security": "الأمان", "topic.umask": "umask", "topic.ACL": "ACL", "topic.chown": "chown",
+    "topic.Symlinks": "الروابط الرمزية", "topic.chattr": "chattr", "topic.su-vs-sudo": "su مقابل sudo",
 
     "ach.first-steps.title": "أول أمر chmod", "ach.first-steps.desc": "أكمل تحديك الأول.",
     "ach.linux-apprentice.title": "متدرّب لينكس", "ach.linux-apprentice.desc": "أكمل كل تحديات المستوى المبتدئ.",
     "ach.challenge-hunter.title": "صائد التحديات", "ach.challenge-hunter.desc": "أكمل 10 تحديات أو أكثر.",
-    "ach.permission-master.title": "خبير الصلاحيات", "ach.permission-master.desc": "أكمل جميع التحديات الثمانين.",
+    "ach.permission-master.title": "خبير الصلاحيات", "ach.permission-master.desc": "أكمل جميع الـ88 تحديًا.",
     "ach.suid-explorer.title": "مستكشف SUID", "ach.suid-explorer.desc": "أكمل 5 تحديات أو أكثر متعلقة بـ SUID.",
     "ach.special-bits-master.title": "خبير البتات الخاصة", "ach.special-bits-master.desc": "أكمل كل تحديات مستوى الخبير.",
     "ach.quiz-rookie.title": "مبتدئ الاختبار", "ach.quiz-rookie.desc": "أكمل أول جولة اختبار لك.",
@@ -331,6 +408,7 @@ const DICT = {
     "ach.quiz-whiz.title": "خبير الثنائي", "ach.quiz-whiz.desc": "أجب بشكل صحيح على 50 سؤال اختبار (إجمالي).",
     "ach.lab-graduate.title": "خريج المختبرات", "ach.lab-graduate.desc": "أكمل كل المختبرات التفاعلية العشرة.",
     "ach.well-rounded.title": "متكامل", "ach.well-rounded.desc": "أكمل تحديًا وجولة اختبار ومختبرًا واحدًا.",
+    "ach.path-complete.title": "المسار مكتمل", "ach.path-complete.desc": "اقرأ كل مواضيع التعلّم وأنهِ كل مختبر وتحدٍّ وجولة اختبار واحدة على الأقل.",
     "ach.permission-legend.title": "أسطورة الصلاحيات", "ach.permission-legend.desc": "احصل على كل الإنجازات الأخرى.",
   },
 };

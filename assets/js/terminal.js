@@ -7,8 +7,10 @@
  */
 
 import { el, qs } from "./utils.js";
-import { FS_TREE, findNode, resolvePath, parentPath, flattenTree } from "./filesystem.js";
-import { octalToState, stateToSymbolic } from "./converter.js";
+import { FS_TREE, findNode, resolvePath, parentPath, flattenTree, resolveSymlink } from "./filesystem.js";
+import { octalToState, stateToSymbolic, triad, triadToSymbol } from "./converter.js";
+import { permsIntersect, permsUnion, recalcAclMask } from "./engine/acl.js";
+import { resolveWriteTarget } from "./engine/fs-model.js";
 
 const HOSTNAME = "learner@permission-lab";
 let cwd = "/home/user";
@@ -44,7 +46,13 @@ const HELP_TEXT = `Available commands:
   chmod &lt;mode&gt; &lt;file&gt;      change a file's permissions
   chown &lt;user&gt; &lt;file&gt;      change a file's owner
   chgrp &lt;group&gt; &lt;file&gt;     change a file's group
+  getfacl &lt;file&gt;           show extended ACL entries, mask and effective bits
+  setfacl -m u:name:rwx &lt;file&gt;   add/update a named user or group ACL entry
+  setfacl -x u:name &lt;file&gt;       remove a named ACL entry (g: for a group)
   history                 show command history
+Symlinks (shown as "name -&gt; target" in ls -l/stat) always report mode 0777 —
+that's cosmetic. cat, chmod, chown and chgrp all follow a symlink to act on
+its target, exactly like the real commands do without a -h/-P flag.
 This is a simulation — no real shell commands are executed and nothing here touches a real filesystem.`;
 
 function runCommand(raw, container) {
@@ -80,6 +88,8 @@ function runCommand(raw, container) {
     chmod: () => handleChmod(args, container),
     chown: () => handleChown(args, container),
     chgrp: () => handleChgrp(args, container),
+    getfacl: () => handleGetfacl(args, container),
+    setfacl: () => handleSetfacl(args, container),
   };
 
   const handler = handlers[cmd];
@@ -110,13 +120,17 @@ function handleLs(args, container) {
   if (flags.includes("l")) {
     const rows = visible.map((c) => {
       const state = octalToState(c.octal, c.isDir);
-      const sym = stateToSymbolic(state);
-      const name = c.isDir ? `<span class="t-path">${c.name}/</span>` : c.name;
+      const sym = (c.isSymlink ? "lrwxrwxrwx" : stateToSymbolic(state)) + (c.acl && c.acl.length ? "+" : "");
+      const name = c.isDir
+        ? `<span class="t-path">${c.name}/</span>`
+        : c.isSymlink
+        ? `<span class="t-path">${c.name}</span> -&gt; ${escapeHTML(c.target)}`
+        : c.name;
       return `${sym}  ${String(c.owner).padEnd(9)} ${String(c.group).padEnd(9)} ${name}`;
     });
     printLine(rows.join("\n"), container);
   } else {
-    printLine(visible.map((c) => (c.isDir ? `<span class="t-path">${c.name}/</span>` : c.name)).join("   "), container);
+    printLine(visible.map((c) => (c.isDir ? `<span class="t-path">${c.name}/</span>` : c.isSymlink ? `<span class="t-path">${c.name}</span>` : c.name)).join("   "), container);
   }
 }
 
@@ -135,6 +149,12 @@ function handleCat(args, container) {
   if (!args[0]) { printLine('<span class="t-err">cat: missing filename</span>', container); return; }
   const node = findNode(FS_TREE, resolveArg(args[0]));
   if (!node || node.isDir) { printLine(`<span class="t-err">cat: ${escapeHTML(args[0])}: no such file</span>`, container); return; }
+  if (node.isSymlink) {
+    const target = resolveSymlink(node);
+    if (!target) { printLine(`<span class="t-err">cat: ${escapeHTML(args[0])}: broken symbolic link to '${escapeHTML(node.target)}'</span>`, container); return; }
+    printLine(`<span class="t-dim">[follows ${escapeHTML(node.path)} -&gt; ${escapeHTML(target.path)}]</span>\n${target.note || `<span class="t-dim">(no description available for this simulated file)</span>`}`, container);
+    return;
+  }
   printLine(node.note || `<span class="t-dim">(no description available for this simulated file)</span>`, container);
 }
 
@@ -146,7 +166,12 @@ function handleTree(args, container) {
     const kids = node.children || [];
     kids.forEach((kid, i) => {
       const last = i === kids.length - 1;
-      lines.push(`${prefix}${last ? "└── " : "├── "}${kid.isDir ? `<span class="t-path">${kid.name}/</span>` : kid.name}`);
+      const label = kid.isDir
+        ? `<span class="t-path">${kid.name}/</span>`
+        : kid.isSymlink
+        ? `<span class="t-path">${kid.name}</span> -&gt; ${escapeHTML(kid.target)}`
+        : kid.name;
+      lines.push(`${prefix}${last ? "└── " : "├── "}${label}`);
       if (kid.isDir) walk(kid, prefix + (last ? "    " : "│   "));
     });
   };
@@ -160,11 +185,13 @@ function handleStat(args, container) {
   const node = findNode(FS_TREE, path);
   if (!node) { printLine(`<span class="t-err">stat: cannot stat '${escapeHTML(args[0])}': no such file or directory</span>`, container); return; }
   const state = octalToState(node.octal, node.isDir);
-  const sym = stateToSymbolic(state);
+  const sym = (node.isSymlink ? "lrwxrwxrwx" : stateToSymbolic(state)) + (node.acl && node.acl.length ? "+" : "");
   printLine([
-    `  File: ${node.path}${node.isDir ? "/" : ""}`,
-    `  Type: ${node.isDir ? "directory" : "regular file"}`,
-    `Access: (${node.octal.padStart(4, "0")}/${sym})  Uid: (${node.owner})   Gid: (${node.group})`,
+    `  File: ${node.path}${node.isDir ? "/" : ""}${node.isSymlink ? ` -&gt; ${escapeHTML(node.target)}` : ""}`,
+    `  Type: ${node.isSymlink ? "symbolic link" : node.isDir ? "directory" : "regular file"}`,
+    `Access: (${node.isSymlink ? "0777" : node.octal.padStart(4, "0")}/${sym})  Uid: (${node.owner})   Gid: (${node.group})`,
+    node.isSymlink ? '<span class="t-dim">A symlink\'s own mode is always 0777 and is never checked by the kernel — access is enforced entirely by the permissions on the target above.</span>' : "",
+    node.acl && node.acl.length ? '<span class="t-dim">The trailing + means this file has extended ACL entries beyond owner/group/others — run getfacl to see them.</span>' : "",
     node.sensitive ? '<span class="t-amber">Flagged sensitive — check the Security Analyzer in the Simulator for details.</span>' : "",
   ].filter(Boolean).join("\n"), container);
 }
@@ -277,9 +304,16 @@ function handleChmod(args, container) {
   }
   const [mode, filename] = args;
   withTargetNode([filename], container, "chmod", (node) => {
-    node.octal = mode;
-    const state = octalToState(mode, node.isDir);
-    printLine(`<span class="t-amber">mode of '${escapeHTML(filename)}' changed to ${mode} (${stateToSymbolic(state)})</span>`, container);
+    const { target, followedSymlink, dangling } = resolveWriteTarget(node);
+    if (dangling) { printLine(`<span class="t-err">chmod: cannot operate on dangling symlink '${escapeHTML(filename)}'</span>`, container); return; }
+    target.octal = mode;
+    const state = octalToState(mode, target.isDir);
+    if (followedSymlink) {
+      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chmod follows it and changes its target instead.</span>\n<span class="t-amber">mode of '${escapeHTML(target.path)}' changed to ${mode} (${stateToSymbolic(state)})</span>`, container);
+      return;
+    }
+    if (target.acl && target.acl.length) recalcAclMask(target);
+    printLine(`<span class="t-amber">mode of '${escapeHTML(filename)}' changed to ${mode} (${stateToSymbolic(state)}${target.acl && target.acl.length ? "+" : ""})</span>${target.acl && target.acl.length ? `\n<span class="t-dim">This file has ACL entries, so its mask was recalculated to ${target.aclMask} — check getfacl, the group digit alone no longer tells the whole story.</span>` : ""}`, container);
   });
 }
 
@@ -287,7 +321,13 @@ function handleChown(args, container) {
   if (args.length < 2) { printLine('<span class="t-err">usage: chown &lt;user&gt; &lt;file&gt;</span>', container); return; }
   const [owner, filename] = args;
   withTargetNode([filename], container, "chown", (node) => {
-    node.owner = owner;
+    const { target, followedSymlink, dangling } = resolveWriteTarget(node);
+    if (dangling) { printLine(`<span class="t-err">chown: cannot operate on dangling symlink '${escapeHTML(filename)}'</span>`, container); return; }
+    target.owner = owner;
+    if (followedSymlink) {
+      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chown follows it by default (use lchown to target the link itself, not supported here).</span>\n<span class="t-amber">owner of '${escapeHTML(target.path)}' changed to ${escapeHTML(owner)}</span>`, container);
+      return;
+    }
     printLine(`<span class="t-amber">owner of '${escapeHTML(filename)}' changed to ${escapeHTML(owner)}</span>`, container);
   });
 }
@@ -296,8 +336,78 @@ function handleChgrp(args, container) {
   if (args.length < 2) { printLine('<span class="t-err">usage: chgrp &lt;group&gt; &lt;file&gt;</span>', container); return; }
   const [group, filename] = args;
   withTargetNode([filename], container, "chgrp", (node) => {
-    node.group = group;
+    const { target, followedSymlink, dangling } = resolveWriteTarget(node);
+    if (dangling) { printLine(`<span class="t-err">chgrp: cannot operate on dangling symlink '${escapeHTML(filename)}'</span>`, container); return; }
+    target.group = group;
+    if (followedSymlink) {
+      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chgrp follows it by default, same as chown.</span>\n<span class="t-amber">group of '${escapeHTML(target.path)}' changed to ${escapeHTML(group)}</span>`, container);
+      return;
+    }
     printLine(`<span class="t-amber">group of '${escapeHTML(filename)}' changed to ${escapeHTML(group)}</span>`, container);
+  });
+}
+
+/* ---------------------------- ACL: getfacl / setfacl (v2.3) ---------------------------- */
+/* A real extended ACL always keeps a "mask" entry that caps what every named
+   user/group entry can actually do, recalculated automatically on every
+   setfacl -m/-x unless you pass -n (not supported here). getfacl shows both
+   the entry's own bits and a "#effective:" comment whenever the mask trims
+   it — that distinction is the whole point of teaching this command. The
+   actual mask/effective math is imported from engine/acl.js so it's
+   independently unit-tested. */
+
+function handleGetfacl(args, container) {
+  withTargetNode(args, container, "getfacl", (node, path) => {
+    const state = octalToState(node.octal, node.isDir);
+    const acl = node.acl || [];
+    const hasExt = acl.length > 0;
+    const mask = hasExt ? (node.aclMask || triadToSymbol(state.group)) : null;
+    const withEffective = (perms) => (mask && permsIntersect(perms, mask) !== perms ? `${perms}\t#effective:${permsIntersect(perms, mask)}` : perms);
+
+    const lines = [
+      `# file: ${path.replace(/^\//, "")}`,
+      `# owner: ${node.owner}`,
+      `# group: ${node.group}`,
+      `user::${triadToSymbol(state.owner)}`,
+    ];
+    acl.filter((e) => e.type === "user").forEach((e) => lines.push(`user:${e.id}:${withEffective(e.perms)}`));
+    lines.push(`group::${withEffective(triadToSymbol(state.group))}`);
+    acl.filter((e) => e.type === "group").forEach((e) => lines.push(`group:${e.id}:${withEffective(e.perms)}`));
+    if (hasExt) lines.push(`mask::${mask}`);
+    lines.push(`other::${triadToSymbol(state.others)}`);
+    printLine(`<span class="t-dim">${lines.join("\n")}</span>${node.isSymlink ? '\n<span class="t-dim">(a symlink has no ACL of its own — this reflects the link\'s cosmetic 777, not its target)</span>' : ""}`, container);
+  });
+}
+
+function handleSetfacl(args, container) {
+  const [flag, spec, filename] = args;
+  if ((flag !== "-m" && flag !== "-x") || !spec || !filename) {
+    printLine('<span class="t-err">usage: setfacl -m u:name:rwx &lt;file&gt;   (add/update)\nsetfacl -x u:name &lt;file&gt;       (remove)\nqualifier can be u/user or g/group</span>', container);
+    return;
+  }
+  withTargetNode([filename], container, "setfacl", (node) => {
+    if (node.isSymlink) { printLine(`<span class="t-err">setfacl: '${escapeHTML(filename)}' is a symlink — setfacl always operates on the real file, apply it to the target</span>`, container); return; }
+    const parts = spec.split(":");
+    const kindRaw = parts[0];
+    const type = kindRaw === "u" || kindRaw === "user" ? "user" : kindRaw === "g" || kindRaw === "group" ? "group" : null;
+    const id = parts[1];
+    if (!type || !id) { printLine(`<span class="t-err">setfacl: bad qualifier '${escapeHTML(spec)}' — use u:name:perms or g:name:perms</span>`, container); return; }
+    node.acl = node.acl || [];
+
+    if (flag === "-m") {
+      const perms = (parts[2] || "").toLowerCase();
+      if (!/^[r-][w-][x-]$/.test(perms)) { printLine(`<span class="t-err">setfacl: invalid permission string '${escapeHTML(parts[2] || "")}' — expected 3 chars like rwx, rw-, r--</span>`, container); return; }
+      const existing = node.acl.find((e) => e.type === type && e.id === id);
+      if (existing) existing.perms = perms; else node.acl.push({ type, id, perms });
+      recalcAclMask(node);
+      printLine(`<span class="t-amber">${type}:${escapeHTML(id)}:${perms} applied to '${escapeHTML(filename)}'</span>\n<span class="t-dim">mask recalculated to ${node.aclMask} — every named entry's real access is capped by this mask, not by the number you just set. Run getfacl to see the effective bits.</span>`, container);
+    } else {
+      const before = node.acl.length;
+      node.acl = node.acl.filter((e) => !(e.type === type && e.id === id));
+      if (node.acl.length === before) { printLine(`<span class="t-dim">setfacl: no matching entry ${type}:${escapeHTML(id)} on '${escapeHTML(filename)}'</span>`, container); return; }
+      recalcAclMask(node);
+      printLine(`<span class="t-amber">removed ${type}:${escapeHTML(id)} from '${escapeHTML(filename)}'</span>`, container);
+    }
   });
 }
 

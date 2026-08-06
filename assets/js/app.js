@@ -64,6 +64,12 @@ function initRouting() {
   qsa("[data-goto]").forEach((btn) => {
     btn.addEventListener("click", () => setActiveView(btn.dataset.goto));
   });
+  window.addEventListener("lpl:navigate", (e) => {
+    const { view, focusTopicId } = e.detail || {};
+    if (!view || !VIEW_IDS.includes(view)) return;
+    setActiveView(view);
+    if (focusTopicId) window.dispatchEvent(new CustomEvent("lpl:learn-focus-topic", { detail: focusTopicId }));
+  });
 
   const initial = (location.hash || "").replace("#", "");
   setActiveView(VIEW_IDS.includes(initial) ? initial : "home", { updateHash: false });

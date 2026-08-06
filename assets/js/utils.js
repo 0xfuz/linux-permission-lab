@@ -115,6 +115,15 @@ export function emitProgressChanged() {
   });
 }
 
+/* ---------------------------- Cross-module navigation (v2.3) ---------------------------- */
+/* A tiny window-level event so a module like Progress can send the user to
+   another view (and optionally focus something inside it) without a direct
+   import cycle back into app.js, which owns the actual view-switching. */
+
+export function navigateToView(viewId, extra = {}) {
+  window.dispatchEvent(new CustomEvent("lpl:navigate", { detail: { view: viewId, ...extra } }));
+}
+
 /* ---------------------------- Misc ---------------------------- */
 
 export function debounce(fn, wait = 200) {

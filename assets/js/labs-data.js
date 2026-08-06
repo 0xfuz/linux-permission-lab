@@ -1,6 +1,6 @@
 /**
  * labs-data.js
- * Pure data for the Interactive Labs module (new in v2.1) — 10 guided,
+ * Pure data for the Interactive Labs module (new in v2.1) — 11 guided,
  * multi-step walkthroughs. Each step is either an "answer" step (type an
  * octal mode, graded like a Challenge) or an "info" step (read and
  * acknowledge a finding before continuing) — narrative labs are built by
@@ -138,5 +138,20 @@ export const LABS = [
         "Keep the 777 base for full shared write access, add sticky (1) on top: 1777."),
       infoStep("You write up your findings. What's the one-sentence summary that ties all three fixes together?",
         "Every fix in this audit removed access that had drifted beyond what was actually needed — the recurring discipline of a permissions audit is asking 'does this specific role really need this specific bit' for every file you touch."),
+    ]),
+
+  lab("lab11", "Grant Access Without Groups (ACL)", "Advanced", 150,
+    "Use ACLs to give one extra account exactly the access it needs — and see how removing an ACL entry can quietly change another one's effective permission.",
+    [
+      infoStep("A new monitoring service account needs read access to /opt/app/config/app.yml, which holds API keys. Adding it to the file's owning group would also hand it whatever else that group can touch. What's the more precise tool for a single-account, single-file grant?",
+        "An ACL entry via setfacl. It grants exactly one account exactly the permission it needs on exactly this file, without restructuring group membership or affecting anyone else."),
+      answerStep("Before touching ACLs at all, the base mode still has to be right on its own: owner read/write, group read-only, others nothing.", "640",
+        "Owner rw-, group r--, others --- = 640. The ACL is additive on top of this, not a replacement for getting the base bits right."),
+      infoStep("You run `setfacl -m u:monitoring:r-- app.yml`. What happens to the file's ACL mask, and does monitoring end up with the read access you intended?",
+        "The mask auto-recalculates to the union of the owning group's permission (r--) and monitoring's new entry (r--), landing on r--. Monitoring's effective permission is the intersection of its own r-- and that r-- mask — also r--, exactly as intended, with nothing silently capped."),
+      infoStep("Weeks earlier, a contractor was temporarily granted `u:contractor:rwx` on this same file for a one-off task, which had widened the mask to rwx. Today someone runs `setfacl -x u:contractor app.yml` to clean it up. What should you check afterward, and why?",
+        "Re-run getfacl on the file. Removing any named entry triggers a mask recalculation across everyone remaining — here it drops back to r-- (group r-- union monitoring r--), which still leaves monitoring fine, but that's exactly the kind of side effect worth confirming rather than assuming."),
+      answerStep("A second file in the same review: a shared deploy script needs execute access for the ops team lead specifically, without changing the script's group. Set the correct base mode first — owner full control, group read+execute, others nothing.", "750",
+        "Owner rwx, group r-x, others --- = 750. The ops lead's individual execute grant would then be layered on top with its own setfacl -m entry, same pattern as monitoring above."),
     ]),
 ];

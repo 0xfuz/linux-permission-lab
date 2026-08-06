@@ -18,7 +18,7 @@
 </script>
 <title>Linux Permission Lab — Interactive Permissions Playground</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><rect width=%2224%22 height=%2224%22 rx=%225%22 fill=%22%23ffb000%22/><text x=%2212%22 y=%2217%22 font-family=%22monospace%22 font-size=%2213%22 font-weight=%22bold%22 text-anchor=%22middle%22 fill=%22%2316110a%22>$_</text></svg>">
-<meta name="description" content="Learn Linux file permissions visually: an interactive simulator, terminal, 19 learning topics, 10 guided labs, 80 challenges, a 100-question quiz, and a security analyzer — all in your browser." />
+<meta name="description" content="Learn Linux file permissions visually: an interactive simulator, terminal, 21 learning topics, 11 guided labs, 88 challenges, a 113-question quiz, and a security analyzer — all in your browser." />
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -123,7 +123,7 @@
       <div class="author-credit">
         Created with <span class="heart" aria-hidden="true">❤</span> by <strong>0x0MAr</strong>
         <div class="author-social">
-          <a href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on GitHub" data-tooltip="GitHub">
+          <a href="https://github.com/0x0Mr" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on GitHub" data-tooltip="GitHub">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.11 2.91.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.05 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.79-4.57 5.04.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
           </a>
           <a href="https://x.com/_7pwn" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on X" data-tooltip="X / Twitter">
@@ -166,7 +166,13 @@
               </button>
               <button class="btn btn-ghost" type="button" data-goto="cheatsheet" data-i18n="hero.docs">Documentation</button>
             </div>
-            <p class="hero-author-badge"><span data-i18n="hero.authorBadge">Created with</span> <span class="heart" aria-hidden="true">❤</span> <a href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer">0x0MAr</a></p>
+            <div class="hero-stats">
+              <div class="hero-stat"><strong>21</strong><span data-i18n="hero.stats.topics">Learn topics</span></div>
+              <div class="hero-stat"><strong>11</strong><span data-i18n="nav.labs">Labs</span></div>
+              <div class="hero-stat"><strong>88</strong><span data-i18n="nav.challenges">Challenges</span></div>
+              <div class="hero-stat"><strong>113</strong><span data-i18n="hero.stats.quiz">Quiz questions</span></div>
+            </div>
+            <p class="hero-author-badge"><span data-i18n="hero.authorBadge">Created with</span> <span class="heart" aria-hidden="true">❤</span> <a href="https://github.com/0x0Mr" target="_blank" rel="noopener noreferrer">0x0MAr</a></p>
             <div class="hero-terminal-preview" aria-hidden="true">
               <div class="terminal-window">
                 <div class="terminal-titlebar">
@@ -200,7 +206,7 @@
               <div class="feature-card">
                 <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg></div>
                 <h3 data-i18n="home.feature.fs.title">Fake Filesystem</h3>
-                <p data-i18n="home.feature.fs.desc">59 realistic files across /etc, /var, /opt, /usr, /tmp, /home and /root — click through real-world permission mistakes.</p>
+                <p data-i18n="home.feature.fs.desc">59 realistic files plus 2 symlinks across /etc, /var, /opt, /usr, /tmp, /home and /root — click through real-world permission mistakes.</p>
               </div>
               <div class="feature-card">
                 <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg></div>
@@ -209,22 +215,22 @@
               </div>
               <div class="feature-card">
                 <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Z"/><path d="M4 19a2.5 2.5 0 0 1 2.5-2.5H20"/></svg></div>
-                <h3 data-i18n="home.feature.learn.title">19 Learning Cards</h3>
+                <h3 data-i18n="home.feature.learn.title">21 Learning Cards</h3>
                 <p data-i18n="home.feature.learn.desc">Every core topic — chmod, chown, umask, ACLs, special bits and more — with diagrams, examples, and warnings.</p>
               </div>
               <div class="feature-card">
                 <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 2h6M10 2v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3.5L14 8V2"/></svg></div>
-                <h3 data-i18n="home.feature.labs.title">10 Interactive Labs</h3>
+                <h3 data-i18n="home.feature.labs.title">11 Interactive Labs</h3>
                 <p data-i18n="home.feature.labs.desc">Guided, multi-step walkthroughs — from securing an SSH key to a full capstone permission audit.</p>
               </div>
               <div class="feature-card">
                 <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4Z"/><path d="m9 12 2 2 4-4"/></svg></div>
-                <h3 data-i18n="home.feature.challenges.title">80 Challenges</h3>
+                <h3 data-i18n="home.feature.challenges.title">88 Challenges</h3>
                 <p data-i18n="home.feature.challenges.desc">Twenty each across Beginner, Intermediate, Advanced and Expert — earn XP and level up as you go.</p>
               </div>
               <div class="feature-card">
                 <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.9.4-1.4 1-1.4 1.9v.3M12 17v.01"/></svg></div>
-                <h3 data-i18n="home.feature.quiz.title">100-Question Quiz</h3>
+                <h3 data-i18n="home.feature.quiz.title">113-Question Quiz</h3>
                 <p data-i18n="home.feature.quiz.desc">Multiple-choice rounds across every topic, with instant explanations and lifetime accuracy tracking.</p>
               </div>
               <div class="feature-card">
@@ -239,24 +245,79 @@
               </div>
             </div>
           </div>
+
+          <div class="home-strip">
+            <span class="eyebrow" data-i18n="home.how.eyebrow">How it works</span>
+            <h2 data-i18n="home.how.heading">Three steps, in order</h2>
+            <div class="flow-steps stagger">
+              <div class="flow-step">
+                <span class="flow-num">01</span>
+                <h3 data-i18n="home.how.step1.title">Learn</h3>
+                <p data-i18n="home.how.step1.desc">Work through 21 topic cards — diagrams, examples, tips and warnings for every core concept.</p>
+              </div>
+              <div class="flow-connector" aria-hidden="true"></div>
+              <div class="flow-step">
+                <span class="flow-num">02</span>
+                <h3 data-i18n="home.how.step2.title">Practice</h3>
+                <p data-i18n="home.how.step2.desc">Apply it in 11 guided Labs and 88 tiered Challenges against a realistic fake filesystem.</p>
+              </div>
+              <div class="flow-connector" aria-hidden="true"></div>
+              <div class="flow-step">
+                <span class="flow-num">03</span>
+                <h3 data-i18n="home.how.step3.title">Prove it</h3>
+                <p data-i18n="home.how.step3.desc">Clear the 113-question Quiz, unlock every achievement, and print a certificate once it's done.</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <p class="footer-note"><span data-i18n="home.footerNote">Linux Permission Lab v2.2 · Educational simulation, no real shell execution</span> · <span id="current-year"></span></p>
-        <p class="footer-author-credit">
-          <span data-i18n="hero.authorBadge">Created with</span> <span class="heart" aria-hidden="true">❤</span> <strong>0x0MAr</strong>
-          <span class="author-social">
-            <a href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on GitHub" data-tooltip="GitHub">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.11 2.91.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.05 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.79-4.57 5.04.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
-            </a>
-            <a href="https://x.com/_7pwn" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on X" data-tooltip="X / Twitter">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.9l-5.4-6.9L4.4 22H1.3l8.1-9.3L1 2h7l4.9 6.3L18.9 2Zm-1.2 18h1.9L7.4 4h-2L17.7 20Z"/></svg>
-            </a>
-            <a href="https://instagram.com/0xfuz" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on Instagram" data-tooltip="Instagram">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1"/></svg>
-            </a>
-          </span>
-        </p>
+        <footer class="site-footer">
+          <div class="site-footer-grid">
+            <div class="site-footer-brand">
+              <div class="brand-mark" aria-hidden="true">$_</div>
+              <p class="text-tertiary" style="font-size:0.82rem;max-width:230px;margin-top:var(--space-3)" data-i18n="footer.tagline">A browser-only playground for the Linux permission model. No backend, no login, no build step.</p>
+            </div>
+            <div class="site-footer-col">
+              <h4 data-i18n="footer.col.product">Product</h4>
+              <button class="footer-link" type="button" data-goto="simulator" data-i18n="nav.simulator">Simulator</button>
+              <button class="footer-link" type="button" data-goto="terminal" data-i18n="nav.terminal">Terminal</button>
+              <button class="footer-link" type="button" data-goto="labs" data-i18n="nav.labs">Labs</button>
+              <button class="footer-link" type="button" data-goto="challenges" data-i18n="nav.challenges">Challenges</button>
+            </div>
+            <div class="site-footer-col">
+              <h4 data-i18n="footer.col.learn">Learn</h4>
+              <button class="footer-link" type="button" data-goto="learn" data-i18n="footer.topicsLink">21 topics</button>
+              <button class="footer-link" type="button" data-goto="quiz" data-i18n="nav.quiz">Quiz</button>
+              <button class="footer-link" type="button" data-goto="cheatsheet" data-i18n="nav.cheatsheet">Cheat Sheet</button>
+              <button class="footer-link" type="button" data-goto="progress" data-i18n="nav.progress">Progress</button>
+            </div>
+            <div class="site-footer-col">
+              <h4 data-i18n="footer.col.project">Project</h4>
+              <button class="footer-link" type="button" data-goto="about" data-i18n="nav.about">About</button>
+              <a class="footer-link" href="https://github.com/0x0Mr" target="_blank" rel="noopener noreferrer" data-i18n="footer.sourceLink">Source on GitHub</a>
+              <a class="footer-link" href="LICENSE" data-i18n="footer.licenseLink">MIT License</a>
+            </div>
+          </div>
+          <div class="site-footer-bottom">
+            <p class="footer-note"><span data-i18n="home.footerNote">Linux Permission Lab v2.3 · Educational simulation, no real shell execution</span> · <span id="current-year"></span></p>
+            <p class="footer-author-credit">
+              <span data-i18n="hero.authorBadge">Created with</span> <span class="heart" aria-hidden="true">❤</span> <strong>0x0MAr</strong>
+              <span class="author-social">
+                <a href="https://github.com/0x0Mr" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on GitHub" data-tooltip="GitHub">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.11 2.91.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.05 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.79-4.57 5.04.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
+                </a>
+                <a href="https://x.com/_7pwn" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on X" data-tooltip="X / Twitter">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.9l-5.4-6.9L4.4 22H1.3l8.1-9.3L1 2h7l4.9 6.3L18.9 2Zm-1.2 18h1.9L7.4 4h-2L17.7 20Z"/></svg>
+                </a>
+                <a href="https://instagram.com/0xfuz" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on Instagram" data-tooltip="Instagram">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1"/></svg>
+                </a>
+              </span>
+            </p>
+          </div>
+        </footer>
       </section>
+
 
       <!-- ========================= SIMULATOR ========================= -->
       <section id="view-simulator" class="view">
@@ -365,7 +426,7 @@
         <div class="view-header">
           <span class="eyebrow">Module 03</span>
           <h2 data-i18n="term.title">Terminal Simulator</h2>
-          <p data-i18n="term.desc">A simulated shell over the same fake filesystem. Try ls -la, tree, find shadow, stat backup.sql, or chmod 600 backup.sql. Type help for the full command list.</p>
+          <p data-i18n="term.desc">A simulated shell over the same fake filesystem. Try ls -la, tree, find shadow, stat backup.sql, chmod 600 backup.sql, or getfacl /opt/app/config/app.yml. Type help for the full command list.</p>
         </div>
 
         <div class="terminal-window" dir="ltr">
@@ -388,6 +449,7 @@
             <button type="button" data-cmd="stat backup.sql">stat backup.sql</button>
             <button type="button" data-cmd="chmod 600 backup.sql">chmod 600 backup.sql</button>
             <button type="button" data-cmd="chown alice backup.sql">chown alice backup.sql</button>
+            <button type="button" data-cmd="getfacl /opt/app/config/app.yml">getfacl /opt/app/config/app.yml</button>
           </div>
         </div>
       </section>
@@ -397,7 +459,7 @@
         <div class="view-header">
           <span class="eyebrow">Module 09 · New</span>
           <h2 data-i18n="learn.title">Learn</h2>
-          <p data-i18n="learn.desc">19 reference topics covering the full permission model — each with a diagram, an example, command references, tips and warnings.</p>
+          <p data-i18n="learn.desc">21 reference topics covering the full permission model — each with a diagram, an example, command references, tips and warnings.</p>
         </div>
 
         <div class="row between wrap" style="margin-bottom: var(--space-4)">
@@ -416,7 +478,7 @@
         <div class="view-header">
           <span class="eyebrow">Module 10 · New</span>
           <h2 data-i18n="labs.title">Interactive Labs</h2>
-          <p data-i18n="labs.desc">Ten guided, multi-step walkthroughs — each mixes short explanations with graded checkpoints, from a first SSH key fix to a full capstone audit.</p>
+          <p data-i18n="labs.desc">Eleven guided, multi-step walkthroughs — each mixes short explanations with graded checkpoints, from a first SSH key fix to a full capstone audit.</p>
         </div>
 
         <div class="challenge-grid" id="labs-grid"></div>
@@ -427,7 +489,7 @@
         <div class="view-header">
           <span class="eyebrow">Module 07</span>
           <h2 data-i18n="ch.title">Challenges</h2>
-          <p data-i18n="ch.desc">80 labs across four tiers — Beginner, Intermediate, Advanced and Expert. Type the octal mode that solves each scenario and earn XP.</p>
+          <p data-i18n="ch.desc">88 labs across four tiers — Beginner, Intermediate, Advanced and Expert. Type the octal mode that solves each scenario and earn XP.</p>
         </div>
 
         <div class="row between wrap" style="margin-bottom: var(--space-4)">
@@ -444,7 +506,7 @@
         <div class="view-header">
           <span class="eyebrow">Module 08 · New</span>
           <h2 data-i18n="quiz.title">Quiz</h2>
-          <p data-i18n="quiz.desc">100 multiple-choice questions across every topic. Rounds are 10 questions — filter by topic or mix them all.</p>
+          <p data-i18n="quiz.desc">113 multiple-choice questions across every topic. Rounds are 10 questions — filter by topic or mix them all.</p>
         </div>
 
         <div class="row between wrap" style="margin-bottom: var(--space-4)">
@@ -568,9 +630,13 @@
           <p data-i18n="progress.desc">Your XP, level, and stats across Challenges, Labs and Quiz — plus achievements and a certificate once you clear the curriculum.</p>
         </div>
 
-        <div id="progress-stats-mount"></div>
+        <div id="progress-path-mount"></div>
 
-        <div class="panel-title" style="margin-top:var(--space-2)"><span class="dot"></span> <span data-i18n="progress.achievements">Achievements</span></div>
+        <div id="progress-stats-mount" style="margin-top:var(--space-6)"></div>
+
+        <div id="progress-share-mount" style="margin-top:var(--space-2)"></div>
+
+        <div class="panel-title" style="margin-top:var(--space-6)"><span class="dot"></span> <span data-i18n="progress.achievements">Achievements</span></div>
         <div class="achievement-grid" id="achievement-grid-mount"></div>
 
         <div style="margin-top:var(--space-6)" id="progress-certificate-mount"></div>
@@ -584,7 +650,7 @@
         </div>
         <div class="panel stack" style="max-width:720px;margin-bottom:var(--space-5)">
           <p data-i18n="about.p1">Linux Permission Lab is a browser-based teaching tool for the Linux permission model — the owner/group/others triad, octal and symbolic notation, ownership, ACLs, and the SUID/SGID/sticky special bits.</p>
-          <p data-i18n="about.p2">It includes a permission simulator, a fake filesystem, a simulated terminal, 19 learning topics, 10 guided labs, 80 challenges, and a 100-question quiz. Everything is simulated — nothing here touches a real file, shell, or system.</p>
+          <p data-i18n="about.p2">It includes a permission simulator, a fake filesystem, a simulated terminal, 21 learning topics, 11 guided labs, 88 challenges, and a 113-question quiz. Everything is simulated — nothing here touches a real file, shell, or system.</p>
           <p class="text-tertiary" style="font-size:0.85rem" data-i18n="about.p4">This project focuses on defensive understanding of permissions and does not include or endorse any offensive or exploitation tooling.</p>
         </div>
 
@@ -606,7 +672,7 @@
           <div class="panel-title" style="margin-bottom:0"><span class="dot"></span> <span data-i18n="about.authorTitle">About the author</span></div>
           <p><span data-i18n="about.authorLine">Linux Permission Lab is created and maintained by</span> <strong>0x0MAr</strong>.</p>
           <div class="author-social author-social-lg">
-            <a class="btn btn-ghost btn-sm" href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer">
+            <a class="btn btn-ghost btn-sm" href="https://github.com/0x0Mr" target="_blank" rel="noopener noreferrer">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.11 2.91.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.05 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.79-4.57 5.04.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
               GitHub
             </a>

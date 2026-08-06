@@ -6,6 +6,7 @@
   .simulator-grid { grid-template-columns: 1fr; }
   .feature-grid { grid-template-columns: repeat(2, 1fr); }
   .output-grid { grid-template-columns: repeat(3, 1fr); }
+  .site-footer-grid { grid-template-columns: 1fr 1fr; gap: var(--space-5); }
 }
 
 @media (max-width: 860px) {
@@ -29,12 +30,18 @@
   .two-col, .simulator-grid { grid-template-columns: 1fr; }
   .feature-grid { grid-template-columns: 1fr; }
   .output-grid { grid-template-columns: 1fr 1fr; }
+  .flow-steps { flex-direction: column; }
+  .flow-connector { display: none; }
+  .site-footer-bottom { flex-direction: column; align-items: flex-start; }
+  .path-steps { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 560px) {
   .hero { padding: 56px var(--space-4) var(--space-6); }
   .hero-actions { flex-direction: column; align-items: stretch; }
   .hero-actions .btn { width: 100%; }
+  .hero-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-4); }
+  .hero-stat { border-inline-end: none; padding: 0; }
   .output-grid { grid-template-columns: 1fr; }
   .led-row { flex-wrap: wrap; }
   .challenge-grid { grid-template-columns: 1fr; }
@@ -42,6 +49,8 @@
   table.cheat-table th, table.cheat-table td { padding: 8px 10px; }
   .learn-tips-warnings { grid-template-columns: 1fr; }
   .achievement-grid { grid-template-columns: 1fr; }
+  .site-footer-grid { grid-template-columns: 1fr; }
+  .path-steps { grid-template-columns: 1fr; }
 }
 
 /* Backdrop for mobile sidebar */

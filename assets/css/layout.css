@@ -220,6 +220,39 @@
   text-align: left;
 }
 
+/* Real content counts, not fabricated social proof — same numbers the
+   feature grid below spells out, just given the weight a SaaS hero gives
+   its metrics strip. */
+.hero-stats {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 0 auto var(--space-6);
+}
+.hero-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0 var(--space-5);
+  border-inline-end: 1px solid var(--border-hairline);
+}
+.hero-stat:last-child { border-inline-end: none; }
+.hero-stat strong {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--amber-300);
+  line-height: 1;
+}
+.hero-stat span {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
 .scroll-indicator {
   display: flex;
   flex-direction: column;
@@ -245,6 +278,101 @@
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: var(--space-4);
 }
+
+/* ---------------------------- How it works (three real steps) ---------------------------- */
+
+.flow-steps {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+.flow-step {
+  flex: 1;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.flow-step:hover { border-color: rgba(43,196,209,0.3); transform: translateY(-2px); }
+.flow-num {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--cyan-400);
+  border: 1px solid rgba(43,196,209,0.3);
+  background: rgba(43,196,209,0.08);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-bottom: var(--space-3);
+}
+.flow-step h3 { margin-bottom: 6px; }
+.flow-step p { font-size: 0.88rem; margin-bottom: 0; }
+.flow-connector {
+  width: 28px;
+  height: 1px;
+  background: var(--border-strong);
+  margin-top: 46px;
+  flex-shrink: 0;
+}
+
+/* ---------------------------- Site footer ---------------------------- */
+
+.site-footer { padding-top: var(--space-7); }
+.site-footer-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: var(--space-6);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.site-footer-brand p { margin: 0; }
+.site-footer-brand .brand-mark {
+  width: 30px; height: 30px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(160deg, var(--amber-500), var(--amber-600));
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-on-amber);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.2), 0 4px 14px var(--amber-glow);
+}
+.site-footer-col h4 {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0 0 var(--space-3);
+  font-weight: 600;
+}
+.site-footer-col { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.footer-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: inherit;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.footer-link:hover { color: var(--amber-300); }
+
+.site-footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-5) 0;
+}
+.site-footer-bottom .footer-note { padding: 0; text-align: start; margin: 0; }
+.site-footer-bottom .footer-author-credit { margin: 0; }
 
 .footer-note {
   text-align: center;

@@ -1,10 +1,10 @@
 /**
  * quiz.js
- * New in v2.1 — Quiz module. Presents the 100-question bank (quiz-data.js)
- * as configurable rounds (10 random questions per round by default, or
- * filtered by topic), tracks score, and feeds results into the shared
- * progress event bus for Achievements/Progress. v2.2 adds Arabic
- * localization via quiz-data.ar.js, merged in per question id.
+ * New in v2.1 — Quiz module. Presents the question bank (quiz-data.js,
+ * expanded to 113 in v2.3) as configurable rounds (10 random questions per
+ * round by default, or filtered by topic), tracks score, and feeds results
+ * into the shared progress event bus for Achievements/Progress. v2.2 adds
+ * Arabic localization via quiz-data.ar.js, merged in per question id.
  */
 
 import { qs, qsa, el, toast, loadState, saveState, onProgressChanged, emitProgressChanged } from "./utils.js";

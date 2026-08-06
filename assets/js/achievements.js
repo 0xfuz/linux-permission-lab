@@ -12,6 +12,8 @@ import { CHALLENGES } from "./challenges-data.js";
 import { getChallengeProgress } from "./challenges.js";
 import { getQuizStats } from "./quiz.js";
 import { getLabsProgress } from "./labs.js";
+import { LABS } from "./labs-data.js";
+import { readTopicCount, totalTopicCount } from "./learn.js";
 
 const ICONS = {
   spark: '<path d="M12 2 14 9 21 12 14 15 12 22 10 15 3 12 10 9 12 2Z"/>',
@@ -24,6 +26,7 @@ const ICONS = {
   trophy: '<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M6 4H4v2a4 4 0 0 0 4 4M18 4h2v2a4 4 0 0 1-4 4"/><path d="M10 15h4v3h-4zM8 21h8"/>',
   graduate: '<path d="M12 3 2 8l10 5 10-5-10-5Z"/><path d="M6 11v5c0 1.5 2.5 3 6 3s6-1.5 6-3v-5"/>',
   balance: '<path d="M12 3v18M7 7 3 15a4 4 0 0 0 8 0L7 7ZM17 7l-4 8a4 4 0 0 0 8 0l-4-8ZM4 7h16"/>',
+  flag: '<path d="M5 21V4"/><path d="M5 4h11l-2.5 4L16 12H5"/>',
 };
 
 function suidBitSet(target) {
@@ -57,8 +60,11 @@ export function computeAchievements() {
     { id: "quiz-rookie", title: t("ach.quiz-rookie.title"), icon: "binary", description: t("ach.quiz-rookie.desc"), earned: quiz.roundsPlayed >= 1 },
     { id: "perfect-score", title: t("ach.perfect-score.title"), icon: "trophy", description: t("ach.perfect-score.desc"), earned: quiz.bestScore >= 10 },
     { id: "quiz-whiz", title: t("ach.quiz-whiz.title"), icon: "binary", description: t("ach.quiz-whiz.desc"), earned: quiz.totalCorrect >= 50, progress: `${quiz.totalCorrect}/50` },
-    { id: "lab-graduate", title: t("ach.lab-graduate.title"), icon: "graduate", description: t("ach.lab-graduate.desc"), earned: labsDone >= 10, progress: `${labsDone}/10` },
+    { id: "lab-graduate", title: t("ach.lab-graduate.title"), icon: "graduate", description: t("ach.lab-graduate.desc"), earned: labsDone >= LABS.length, progress: `${labsDone}/${LABS.length}` },
     { id: "well-rounded", title: t("ach.well-rounded.title"), icon: "balance", description: t("ach.well-rounded.desc"), earned: completedCount >= 1 && quiz.roundsPlayed >= 1 && labsDone >= 1 },
+    { id: "path-complete", title: t("ach.path-complete.title"), icon: "flag", description: t("ach.path-complete.desc"),
+      earned: readTopicCount() >= totalTopicCount() && completedCount >= CHALLENGES.length && labsDone >= LABS.length && quiz.roundsPlayed >= 1,
+      progress: `${Math.min(readTopicCount(), totalTopicCount())}/${totalTopicCount()} · ${completedCount}/${CHALLENGES.length} · ${labsDone}/${LABS.length} · ${quiz.roundsPlayed >= 1 ? "✓" : "0"} quiz` },
   ];
 
   const legendEarned = list.every((a) => a.earned);

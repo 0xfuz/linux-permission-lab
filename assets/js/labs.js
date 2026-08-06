@@ -11,20 +11,13 @@ import { qs, qsa, el, toast, loadState, saveState, emitProgressChanged } from ".
 import { validateOctalInput } from "./converter.js";
 import { LABS } from "./labs-data.js";
 import { LABS_AR } from "./labs-data.ar.js";
-import { getLocale, t, onLocaleChanged } from "./i18n.js";
+import { t, onLocaleChanged, localize } from "./i18n.js";
 
-/** Merge the Arabic overlay in step-by-step (steps carry type/target that the
- * overlay doesn't repeat), rather than a flat object spread. */
+/** Thin wrapper: labs need the shared localize()'s nested-array mode
+ * because a step overlay carries only the translated prompt/hint/note,
+ * not the type/target fields the base step already has. */
 function localizedLab(lab) {
-  if (getLocale() !== "ar" || !LABS_AR[lab.id]) return lab;
-  const ov = LABS_AR[lab.id];
-  return {
-    ...lab,
-    title: ov.title ?? lab.title,
-    difficulty: ov.difficulty ?? lab.difficulty,
-    summary: ov.summary ?? lab.summary,
-    steps: lab.steps.map((s, i) => ({ ...s, ...(ov.steps && ov.steps[i] ? ov.steps[i] : {}) })),
-  };
+  return localize([lab], LABS_AR, { nestedArrayKey: "steps" })[0];
 }
 
 export function getLabsProgress() {

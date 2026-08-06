@@ -17,6 +17,18 @@ export const SEVERITY = { SAFE: "safe", WARNING: "warning", CRITICAL: "critical"
  * @returns {{ level: string, headline: string, reasons: string[] }}
  */
 export function analyzePermissions(state, context = {}) {
+  if (context.isSymlink) {
+    const target = context.symlinkTarget ? ` (${context.symlinkTarget})` : "";
+    return {
+      level: SEVERITY.SAFE,
+      headline: "A symlink's own mode is never enforced.",
+      reasons: [
+        `This is a symbolic link${target}. The kernel always reports it as 777/rwxrwxrwx and ignores that value completely — access is decided entirely by the permissions on whatever it points to.`,
+        "Select the link's target in the filesystem tree to analyze the permissions that actually matter here.",
+      ],
+    };
+  }
+
   const reasons = [];
   let level = SEVERITY.SAFE;
 
@@ -73,6 +85,10 @@ export function analyzePermissions(state, context = {}) {
 
   if (reasons.length === 0) {
     reasons.push("Access is scoped sensibly: only the owner (and where relevant, the group) can write, and no special bits introduce extra risk.");
+  }
+
+  if (context.hasAcl) {
+    reasons.push("This file also has extended ACL entries (the '+' in ls -l/stat) that grant or restrict specific users or groups beyond what's shown here — run getfacl in the Terminal to see the full picture.");
   }
 
   const octal = stateToOctal(state, true);

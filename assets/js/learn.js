@@ -1,13 +1,13 @@
 /**
  * learn.js
- * New in v2.1 — a full reference curriculum of 19 learning cards covering
- * the Linux permission model end to end. Each topic gets a small generated
- * SVG diagram (from a shared set of diagram builders, so 19 topics don't
- * require 19 bespoke illustrations) plus a description, example, command
- * reference, tips and warnings.
+ * New in v2.1, expanded in v2.3 — a full reference curriculum of 21 learning
+ * cards covering the Linux permission model end to end. Each topic gets a
+ * small generated SVG diagram (from a shared set of diagram builders, so 21
+ * topics don't require 21 bespoke illustrations) plus a description,
+ * example, command reference, tips and warnings.
  */
 
-import { el, qs, qsa } from "./utils.js";
+import { el, qs, qsa, loadState, saveState, emitProgressChanged, onProgressChanged } from "./utils.js";
 import { t, localize, onLocaleChanged } from "./i18n.js";
 import { LEARN_TOPICS_AR } from "./learn.ar.js";
 
@@ -186,6 +186,15 @@ export const LEARN_TOPICS = [
     warnings: ["ACL entries are easy to forget about since they don't show up in a plain `ls -l` — always check with `getfacl` when auditing a sensitive file."],
   },
   {
+    id: "chattr", title: "Special File Attributes (chattr)",
+    description: "Beyond the owner/group/others model, Linux files can carry extra attributes that override normal permission checks entirely. The most common is the immutable bit — once set, not even root can modify, delete, rename, or link the file until it's explicitly unset, regardless of what chmod says.",
+    diagram: () => beforeAfterDiagram("mutable (default)", "immutable (+i)", "chattr +i file"),
+    example: "chattr +i /etc/resolv.conf stops a DHCP client or malware from silently overwriting your DNS settings — even chmod 777 wouldn't let a write through while +i is set.",
+    commands: ["lsattr file", "chattr +i file", "chattr -i file", "chattr +a logfile"],
+    tips: ["The append-only attribute (+a) is perfect for log files — processes can add new lines but can't truncate or edit existing ones, even as root.", "lsattr shows attributes the same way ls -l shows permissions — always check it when a file behaves strangely despite 'correct' permissions."],
+    warnings: ["A forgotten +i on a config file is a classic 'why won't this save' mystery — chmod, chown, and even root-owned processes all fail with 'Operation not permitted' until it's unset.", "chattr requires the filesystem to support extended attributes — most Linux-native filesystems do, but some network or removable filesystems don't."],
+  },
+  {
     id: "suid", title: "SUID",
     description: "The Set User ID bit makes an executable run with the privileges of its owner rather than the user who launched it. It's how programs like `passwd` let ordinary users perform an action that technically requires root, without giving them root access generally.",
     diagram: () => bitPositionDiagram("s", 0),
@@ -231,6 +240,15 @@ export const LEARN_TOPICS = [
     warnings: ["'It was 600 originally' doesn't guarantee it still is after being copied, moved, extracted from an archive, or synced by some tools."],
   },
   {
+    id: "su-vs-sudo", title: "su vs sudo",
+    description: "Both commands let you run something as another user, but they solve different problems. `su` switches your entire session to another user's identity — usually root — until you exit. `sudo` runs a single command with elevated privileges and immediately returns you to your own account, logging exactly who ran what.",
+    diagram: () => beforeAfterDiagram("$ your_user", "# root shell", "sudo -i  /  su -"),
+    example: "sudo apt update logs precisely who ran it and when; su - followed by apt update grants a full root shell with no per-command audit trail until you exit it.",
+    commands: ["sudo whoami", "sudo -l", "sudo -i", "su - username", "visudo"],
+    tips: ["`sudo -l` shows exactly what commands your account is allowed to run as root — a quick way to audit your own access.", "Always edit /etc/sudoers with `visudo`, never a plain text editor — it validates syntax before saving so a typo can't lock everyone out."],
+    warnings: ["A sudoers line like `user ALL=(ALL) NOPASSWD: ALL` is functionally equivalent to handing that user root with no password check and a thinner audit trail — treat it as a critical finding.", "`su` requires knowing the target account's password; `sudo` requires being listed in /etc/sudoers — losing track of which accounts have which is a common audit gap."],
+  },
+  {
     id: "escalation", title: "Permission Escalation Risks",
     description: "Privilege escalation often exploits permission mistakes rather than complex vulnerabilities: a world-writable SUID root binary, an overly permissive sudoers entry, or a script run by root that reads from a directory regular users can write into.",
     diagram: () => gaugeDiagram(2),
@@ -265,12 +283,54 @@ function localizedTopics() {
   return localize(LEARN_TOPICS, LEARN_TOPICS_AR);
 }
 
+/* ---------------------------- Read tracking (v2.3) ---------------------------- */
+/* A topic counts as "read" the first time its card is expanded — no extra
+   button to click. Persisted through the same lpl_state_v1 blob and event
+   bus every other module already uses, so Progress/Path can react to it. */
+
+function getReadTopicIds() {
+  return new Set(loadState().readTopics || []);
+}
+function markTopicRead(id) {
+  const read = getReadTopicIds();
+  if (read.has(id)) return;
+  read.add(id);
+  saveState({ readTopics: [...read] });
+  emitProgressChanged();
+}
+export function readTopicCount() {
+  return getReadTopicIds().size;
+}
+export function totalTopicCount() {
+  return LEARN_TOPICS.length;
+}
+export function isTopicRead(id) {
+  return getReadTopicIds().has(id);
+}
+/** First topic (in curriculum order) not yet read, or null once every topic has been opened. */
+export function firstUnreadTopicId() {
+  const read = getReadTopicIds();
+  const next = LEARN_TOPICS.find((topic) => !read.has(topic.id));
+  return next ? next.id : null;
+}
+
 function renderTopicCard(topic) {
   const details = el("details", { class: "learn-card", id: `learn-${topic.id}` });
+  const read = isTopicRead(topic.id);
   const summary = el("summary", {}, [
-    el("span", { class: "learn-card-title" }, topic.title),
+    el("span", { class: "learn-card-title" }, [
+      read ? el("span", { class: "learn-read-dot", "aria-label": t("learn.readLabel"), "data-tooltip": t("learn.readLabel") }) : null,
+      topic.title,
+    ].filter(Boolean)),
     el("span", { class: "chev" }, "›"),
   ]);
+
+  details.addEventListener("toggle", () => {
+    if (details.open && !isTopicRead(topic.id)) {
+      markTopicRead(topic.id);
+      details.querySelector(".learn-card-title")?.prepend(el("span", { class: "learn-read-dot", "aria-label": t("learn.readLabel"), "data-tooltip": t("learn.readLabel") }));
+    }
+  });
 
   const diagramWrap = el("div", { class: "learn-diagram", html: topic.diagram() });
 
@@ -329,4 +389,26 @@ export function initLearn() {
   qs("#learn-expand-all")?.addEventListener("click", () => qsa("#learn-list-mount details").forEach((d) => { d.open = true; }));
   qs("#learn-collapse-all")?.addEventListener("click", () => qsa("#learn-list-mount details").forEach((d) => { d.open = false; }));
   onLocaleChanged(renderLearnList);
+}
+
+/* Registered once at module load (not inside initLearn) so a Guided Path
+   "Continue" click works correctly even on someone's very first visit to
+   Learn, before initLearn has ever run. Guarded on `typeof window` purely
+   so this module (and achievements.js/progress.js, which import it) stays
+   importable under Node's test runner, which has no `window` global —
+   the browser behavior is completely unchanged. */
+if (typeof window !== "undefined") {
+  window.addEventListener("lpl:learn-focus-topic", (e) => {
+    const id = e.detail;
+    if (!id) return;
+    learnSearchTerm = "";
+    const input = qs("#learn-search-input");
+    if (input) input.value = "";
+    renderLearnList();
+    const node = document.getElementById(`learn-${id}`);
+    if (node) {
+      node.open = true;
+      node.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
 }

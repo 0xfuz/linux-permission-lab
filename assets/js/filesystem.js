@@ -18,11 +18,20 @@ import { analyzePermissions } from "./security.js";
 /** Shorthand builders keep the tree declaration free of repeated boilerplate. */
 function f(name, octal, opts = {}) {
   return { name, isDir: false, octal, owner: opts.owner || "root", group: opts.group || "root",
-    sensitive: !!opts.sensitive, note: opts.note || "" };
+    sensitive: !!opts.sensitive, note: opts.note || "", acl: opts.acl || [] };
 }
 function d(name, octal, children, opts = {}) {
   return { name, isDir: true, octal, owner: opts.owner || "root", group: opts.group || "root",
     sensitive: !!opts.sensitive, note: opts.note || "", children };
+}
+/** Symlinks always report as 777 (lrwxrwxrwx) — the OS ignores a link's own
+ *  bits and enforces whatever the *target* allows. `target` is stored as
+ *  the raw string the link points to, exactly like `readlink` would print it
+ *  (relative or absolute), and is never itself walked/validated. */
+function l(name, target, opts = {}) {
+  return { name, isDir: false, isSymlink: true, target, octal: "777",
+    owner: opts.owner || "root", group: opts.group || "root",
+    sensitive: !!opts.sensitive, note: opts.note || "" };
 }
 
 export const FS_TREE = d("", "755", [
@@ -91,7 +100,8 @@ export const FS_TREE = d("", "755", [
     d("app", "755", [
       f("app.jar", "644", { note: "Application artifact — doesn't need to be executable directly." }),
       d("config", "750", [
-        f("app.yml", "640", { sensitive: true, note: "Application configuration including API keys — owner/group only." }),
+        f("app.yml", "640", { sensitive: true, acl: [{ type: "user", id: "monitoring", perms: "r--" }],
+          note: "Application configuration including API keys — owner/group only by the base bits, plus one extra grant: run 'getfacl' on this file to see it. A monitoring service account was given read access via a named ACL entry instead of being added to the owning group, which would have been far more permissive." }),
       ]),
       d("bin", "755", [
         f("start.sh", "750", { note: "Startup script — owner and group can run it, others can't." }),
@@ -125,6 +135,8 @@ export const FS_TREE = d("", "755", [
     f("session_abc123", "600", { owner: "user", note: "A user's private session file — correctly locked down even inside a shared directory." }),
     f("upload_tmp", "666", { owner: "user", sensitive: true, note: "A temp upload left world-writable — anyone could tamper with it before it's processed." }),
     f(".hidden_script.sh", "777", { owner: "user", sensitive: true, note: "A hidden script that is both world-writable and world-executable — a critical, easily-missed exposure." }),
+    l("current_auth_log", "/var/log/auth.log", { owner: "user", sensitive: true,
+      note: "A symlink created inside the world-writable /tmp, pointing at a log restricted to root and the adm group. Anyone can create this link — /tmp being world-writable is about creating and deleting entries, not about what those entries can point to. Reading through it still checks the target's real permissions (640, group adm), not the link's own. Always inspect what a link points to, never the link itself." }),
   ], { note: "World-writable with the sticky bit set — the standard, safe configuration for a shared scratch directory." }),
 
   d("home", "755", [
@@ -143,6 +155,8 @@ export const FS_TREE = d("", "755", [
           note: "Contains database credentials but sits in a web-servable directory at 644 — a common misconfiguration." }),
       ], { owner: "user", group: "user" }),
       f("backup.sql", "666", { owner: "user", group: "user", sensitive: true, note: "A full database dump, world-writable. Anyone on the box can corrupt it." }),
+      l("latest_backup.sql", "backup.sql", { owner: "user", group: "user",
+        note: "An ordinary relative symlink to backup.sql in the same directory. `ls -l` always reports symlinks as lrwxrwxrwx (777) no matter what you chmod them to — that's cosmetic. The permissions that actually govern access live on backup.sql itself, which is why this link and its target can show completely different security verdicts." }),
       f("script.sh", "755", { owner: "user", group: "user", note: "An executable shell script — 755 is standard so the owner can edit and everyone can run it." }),
       f("notes.txt", "644", { owner: "user", group: "user", note: "Ordinary personal notes." }),
       f(".bash_history", "600", { owner: "user", group: "user", note: "Command history — can contain pasted secrets, so owner-only is correct." }),
@@ -190,7 +204,9 @@ function nodeIcon(node) {
   svg.setAttribute("viewBox", "0 0 24 24");
   svg.setAttribute("fill", "none");
   svg.classList.add("fs-icon");
-  svg.innerHTML = node.isDir
+  svg.innerHTML = node.isSymlink
+    ? '<path d="M9.5 14.5 14.5 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M11 6.5h1.5A3.5 3.5 0 0 1 16 10v0a3.5 3.5 0 0 1-3.5 3.5H11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13 17.5h-1.5A3.5 3.5 0 0 1 8 14v0a3.5 3.5 0 0 1 3.5-3.5H13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
+    : node.isDir
     ? '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" stroke="currentColor" stroke-width="1.6"/>'
     : '<path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6"/><path d="M14 3v4h4" stroke="currentColor" stroke-width="1.6"/>';
   return svg;
@@ -198,19 +214,19 @@ function nodeIcon(node) {
 
 function renderNode(node, container) {
   const state = octalToState(node.octal, node.isDir);
-  const analysis = analyzePermissions(state, { isSensitive: !!node.sensitive });
+  const analysis = analyzePermissions(state, { isSensitive: !!node.sensitive, isSymlink: !!node.isSymlink, hasAcl: !!(node.acl && node.acl.length) });
 
   const btn = el("button", {
-    class: `fs-node-btn ${node.path === selectedPath ? "selected" : ""} ${analysis.level === "critical" ? "is-risky" : ""}`,
+    class: `fs-node-btn ${node.path === selectedPath ? "selected" : ""} ${analysis.level === "critical" && !node.isSymlink ? "is-risky" : ""}`,
     type: "button",
     "data-path": node.path,
     "aria-pressed": node.path === selectedPath ? "true" : "false",
-    "data-tooltip": `${node.owner}:${node.group}`,
+    "data-tooltip": node.isSymlink ? `${node.owner}:${node.group} → ${node.target}` : `${node.owner}:${node.group}`,
     onClick: () => selectNode(node),
   }, [
     nodeIcon(node),
-    el("span", { class: "fs-name" }, node.isDir ? node.name + "/" : node.name),
-    el("span", { class: "fs-perm-chip" }, node.octal),
+    el("span", { class: "fs-name" }, node.isDir ? node.name + "/" : node.name + (node.isSymlink ? ` → ${node.target}` : "")),
+    el("span", { class: `fs-perm-chip${node.isSymlink ? " fs-perm-chip-link" : ""}` }, node.isSymlink ? "link" : node.octal),
   ]);
   container.append(btn);
 
@@ -267,6 +283,15 @@ export function parentPath(path) {
   const parts = path.split("/").filter(Boolean);
   parts.pop();
   return parts.length ? "/" + parts.join("/") : "/";
+}
+
+/** Resolve a symlink node to the node it points at (relative or absolute
+ *  target), the way the kernel would when following the link. Returns null
+ *  for a dangling link — nothing here ever throws on a bad target. */
+export function resolveSymlink(node) {
+  if (!node || !node.isSymlink) return node;
+  const targetPath = resolvePath(parentPath(node.path), node.target);
+  return findNode(FS_TREE, targetPath);
 }
 
 /** Flatten the whole tree — used by `find` and `grep` in the terminal. */
