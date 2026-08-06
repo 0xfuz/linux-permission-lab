@@ -9,8 +9,10 @@ npm test
 That's the whole setup — `npm install` has nothing to install (zero dependencies, `package.json` exists purely to define the `test` script). If you don't even want npm involved:
 
 ```bash
-node --test "tests/**/*.test.js"
+node --test
 ```
+
+Node's test runner auto-discovers files by default — anything matching `*.test.js` (recursively, including `tests/**`) counts as a test file. No path argument needed, and none should be added: an earlier version of this script explicitly passed `"tests/**/*.test.js"` as a glob string, which worked locally (Node 22) but failed on GitHub Actions' runner (Node 20) with `Could not find '.../tests/**/*.test.js'` — Node's glob-string handling for that argument isn't consistent across versions. Bare `node --test` relies on documented, version-stable default discovery instead.
 
 `npm run test:watch` re-runs on file changes.
 

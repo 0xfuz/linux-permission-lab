@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Browser-only, zero-backend Linux permission/security training platform. This package.json exists only to run the test suite — nothing here is required to use the app itself; opening index.html directly still works with zero dependencies and zero build step.",
   "scripts": {
-    "test": "node --test \"tests/**/*.test.js\"",
-    "test:watch": "node --test --watch \"tests/**/*.test.js\""
+    "test": "node --test",
+    "test:watch": "node --test --watch"
   },
   "engines": {
     "node": ">=18"
