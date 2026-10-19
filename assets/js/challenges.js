@@ -8,7 +8,7 @@
  * Arabic localization via challenges-data.ar.js merged in per-id.
  */
 
-import { qs, qsa, el, toast, loadState, saveState, onProgressChanged, emitProgressChanged } from "./utils.js";
+import { qs, qsa, el, toast, loadState, saveState, onProgressChanged, emitProgressChanged, setFeedback } from "./utils.js";
 import { validateOctalInput, stateToSymbolic, octalToState } from "./converter.js";
 import { CHALLENGES } from "./challenges-data.js";
 import { CHALLENGES_AR } from "./challenges-data.ar.js";
@@ -163,7 +163,10 @@ function revealHint() {
   }
   const hint = currentChallenge.hints[hintsRevealed];
   hintsRevealed += 1;
-  hintsMount.append(el("div", { class: "readout", style: "margin-top:8px", html: `<span class="readout-label">${hintsRevealed}</span><div style="color:var(--text-secondary);font-size:0.85rem">${hint}</div>` }));
+  hintsMount.append(el("div", { class: "readout readout-hint" }, [
+    el("span", { class: "readout-label" }, [String(hintsRevealed)]),
+    el("div", { class: "readout-hint-text" }, [hint]),
+  ]));
 }
 
 function checkAnswer() {
@@ -171,21 +174,21 @@ function checkAnswer() {
   const input = qs("#challenge-answer-input");
   const feedback = qs("#challenge-answer-feedback");
   const { valid, message } = validateOctalInput(input.value);
-  if (!valid) { feedback.innerHTML = `<span style="color:var(--crit-500)">${message}</span>`; return; }
+  if (!valid) { setFeedback(feedback, message, "crit"); return; }
 
   const normalized = input.value.trim().replace(/^0+(?=\d)/, "");
   const target = currentChallenge.target.replace(/^0+(?=\d)/, "");
   const isCorrect = normalized === target || normalized.padStart(target.length, "0") === target;
 
   if (isCorrect) {
-    feedback.innerHTML = `<span style="color:var(--safe-500)">${t("quiz.correct")}! ${currentChallenge.target}</span>`;
+    setFeedback(feedback, `${t("quiz.correct")}! ${currentChallenge.target}`, "safe");
     setCompleted(currentChallenge.id, currentChallenge.xp);
     updateXPWidget();
     renderChallengeGrid();
     qs("#challenge-explanation")?.replaceChildren(explanationNode(currentChallenge));
     toast(`+${currentChallenge.xp} XP`, "success");
   } else {
-    feedback.innerHTML = `<span style="color:var(--warn-500)">${t("ch.notQuite")}</span>`;
+    setFeedback(feedback, t("ch.notQuite"), "warn");
   }
 }
 

@@ -19,7 +19,8 @@ installLocalStorageShim();
 
 import { saveState } from "../../assets/js/utils.js";
 import { computeAchievements, earnedAchievementCount, totalAchievementCount } from "../../assets/js/achievements.js";
-import { computeTotals, computePathPhases, buildProgressSnapshot } from "../../assets/js/progress.js";
+import { computeTotals, computePathPhases, buildProgressSnapshot, resetAllProgress } from "../../assets/js/progress.js";
+import { loadState, onProgressChanged } from "../../assets/js/utils.js";
 import { CHALLENGES } from "../../assets/js/challenges-data.js";
 import { LABS } from "../../assets/js/labs-data.js";
 import { LEARN_TOPICS } from "../../assets/js/learn.js";
@@ -217,5 +218,49 @@ describe("buildProgressSnapshot — exported JSON shape", () => {
     const snapshot = buildProgressSnapshot();
     assert.equal(snapshot.challenges.total, CHALLENGES.length);
     assert.equal(snapshot.labs.total, LABS.length);
+  });
+});
+
+describe("resetAllProgress", () => {
+  test("clears challenge/lab/quiz/read-topic progress but keeps locale and theme", () => {
+    saveState({
+      challengeProgress: fakeChallengeProgress([CHALLENGES[0].id]),
+      labsProgress: fakeLabsProgress([LABS[0].id]),
+      quizStats: { roundsPlayed: 3, totalAnswered: 30, totalCorrect: 20, bestScore: 8 },
+      readTopics: [LEARN_TOPICS[0].id],
+      locale: "ar",
+      theme: "light",
+    });
+    resetAllProgress();
+    const state = loadState();
+    assert.equal(state.challengeProgress, undefined);
+    assert.equal(state.labsProgress, undefined);
+    assert.equal(state.quizStats, undefined);
+    assert.equal(state.readTopics, undefined);
+    assert.equal(state.locale, "ar", "a preference, not progress — must survive a reset");
+    assert.equal(state.theme, "light", "a preference, not progress — must survive a reset");
+  });
+
+  test("XP/level/achievements all read back to zero afterwards, since they're derived", () => {
+    saveState({ challengeProgress: fakeChallengeProgress([CHALLENGES[0].id]), labsProgress: fakeLabsProgress([LABS[0].id]) });
+    assert.ok(computeTotals().totalXP > 0, "sanity check: fixture actually produced some XP first");
+    resetAllProgress();
+    const totals = computeTotals();
+    assert.equal(totals.totalXP, 0);
+    assert.equal(totals.level, 1);
+    assert.equal(earnedAchievementCount(), 0);
+  });
+
+  test("notifies progress listeners, so a mounted view can re-render without a page reload", () => {
+    saveState({ challengeProgress: fakeChallengeProgress([CHALLENGES[0].id]) });
+    let notified = false;
+    onProgressChanged(() => { notified = true; });
+    resetAllProgress();
+    assert.equal(notified, true);
+  });
+
+  test("safe to call with no prior progress at all", () => {
+    assert.doesNotThrow(() => resetAllProgress());
+    assert.equal(computeTotals().totalXP, 0);
   });
 });

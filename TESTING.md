@@ -26,12 +26,32 @@ Node's test runner auto-discovers files by default — anything matching `*.test
 | `tests/engine/acl.test.js` | `engine/acl.js` — ACL mask/effective-permission math | 16 |
 | `tests/engine/fs-model.test.js` | `engine/fs-model.js` — tree lookup/resolution against the real `FS_TREE` | 14 |
 | `tests/engine/symlinks.test.js` | chmod/chown/chgrp-follows-target semantics, dangling links | 9 |
+| `tests/engine/users.test.js` | `engine/users.js` — access classes, ACL mask, traversal, sticky bit, chown/chgrp rules, umask math | 25 |
+| `tests/engine/sysinfo.test.js` | `engine/sysinfo.js` — process/service/socket/disk data integrity, journal filters, lastlog | 17 |
+| `tests/engine/shell-parse.test.js` | `engine/shell-parse.js` — quote-aware tokenizer, unterminated-quote errors, file-name rules | 14 |
+| `tests/engine/complete.test.js` | `engine/complete.js` — Tab completion: commands, paths, ambiguity, dotfiles, quote/whitespace safety | 10 |
+| `tests/engine/safe-html.test.js` | `engine/safe-html.js` — `escapeHTML`, `sanitizeTerminalHTML` against script/img/handler payloads | 7 |
+| `tests/regression/terminal-safety.test.js` | Quoting in real commands; unsafe names refused; output never contains foreign tags (incl. a node planted straight into the tree) | 13 |
+| `tests/regression/terminal-completion.test.js` | Tab completion against the live terminal state (cwd, user permissions) + `COMMAND_NAMES` in sync with the dispatch table | 5 |
+| `tests/regression/dom-safety.test.js` | No interpolated template literal reaches `innerHTML` / `el({ html })` outside the sanitized terminal printer | 1 |
+| `tests/regression/i18n-parity.test.js` | EN/AR dictionary keys identical, every `t()`/`data-i18n` key defined, Arabic content overlays complete and shape-compatible | 10 |
+| `tests/regression/static-site.test.js` | CSP present and obeyed (no inline scripts/handlers), external origins allowed, local files exist, version consistent | 8 |
+| `tests/regression/terminal.test.js` | The real `runCommand()` end-to-end via `helpers/dom-shim.js`: su/sudo/exit, enforcement, umask, `ln -s` | 46 |
+| `tests/regression/sysinvestigation.test.js` | `ps`, `who`/`w`, `last`/`lastlog`, `uname`, `df`/`du`, `ss`/`netstat`, `systemctl`, `journalctl`, `dmesg`, `getcap`, `crontab -l`, `sudo -l`, `find -perm`, `find -name`, end-to-end | 43 |
+| `tests/regression/terminal-help-flag.test.js` | `<command> --help`/`-h` for all 47 commands, sourced from the same data the Cheat Sheet uses | 9 |
+| `tests/regression/terminal-commands-data.test.js` | The Cheat Sheet's command-reference data: shape, unique ids, valid categories, and sync with `terminal.js`'s real dispatch table | 5 |
 | `tests/regression/challenges.test.js` | All 88 Challenges: locked-in answer snapshot + schema invariants | 9 |
 | `tests/regression/labs.test.js` | All 11 Labs: locked-in answer-step snapshot + schema invariants | 9 |
-| `tests/regression/progress.test.js` | XP/level math, all 13 achievements, Guided Path phases, export snapshot shape | 21 |
+| `tests/regression/progress.test.js` | XP/level math, all 13 achievements, Guided Path phases, export snapshot shape, resetAllProgress | 25 |
+| `tests/engine/scenario.test.js` | `engine/scenario.js` — grafting/unloading under `/srv/lab`, group overrides, deterministic reset, every check helper, hint progression, challenge sessions | 31 |
+| `tests/engine/investigation.test.js` | `engine/investigation.js` against the real terminal and `inv01`: evidence gating, diagnosis (locked/wrong/correct), state-judged fixes, verification, per-phase hints, reset | 43 |
+| `tests/engine/scenario-validators.test.js` | v2.12.1 validator review: world-writable detection through named ACL entries/groups (effective, mask-aware), the absence of an `other::` entry, `accessWithin`, tc04 directory-write enforcement, label-vs-enforcement checks | 41 |
+| `tests/regression/scenarios.test.js` | The 5 shipped scenarios: data invariants, accepted fixes vs rejected shortcuts, terminal observer hook, unchanged terminal behaviour, progress persistence + v2.11 backward compatibility | 61 |
+| `tests/regression/scenarios-ui.test.js` | Scenarios panel: hostile text rendered inertly, ARIA/keyboard structure, and the real controller driven end to end (challenge + investigation) via `helpers/ui-harness.js` | 25 |
+| `tests/regression/scenarios-i18n.test.js` | Arabic overlay for scenarios lines up with the English source (ids, array lengths); `sc.*` UI strings in both languages | 8 |
 | `tests/regression/i18n-localize.test.js` | `i18n.js`'s `localize()`, including the nested-array mode Labs now uses, against both synthetic fixtures and the real `LABS`/`LABS_AR` data | 10 |
 
-154 tests total. Run `npm test` for the current count — this table will drift out of date before that command will.
+582 tests total. Run `npm test` for the current count — this table will drift out of date before that command will.
 
 ## Why Node's built-in test runner, not Jest/Vitest
 
@@ -50,6 +70,10 @@ Two more small fixes landed alongside the test suite, both flagged in the Phase 
 
 3. **`challenges.js` used to detect the current locale by comparing a translated string's value** (`t("ch.checkAnswer") === "Check answer" ? … : …`) instead of checking the locale directly — fragile, since editing that one English string would have silently broken it. Replaced with a proper `ch.notQuite` i18n key, same pattern as every other string in the app.
 4. **`labs.js` had its own hand-rolled Arabic-overlay merge** instead of reusing the shared `localize()` helper every other content type (Learn, Challenges, Quiz) already used, because a Lab's nested `steps[]` array needed element-by-element merging that the original flat `localize()` couldn't do. `localize()` now accepts an optional `nestedArrayKey` option to handle exactly that case, so Labs uses the same shared function as everything else — one merge implementation instead of two. `tests/regression/i18n-localize.test.js` covers this against both a synthetic fixture and the real `LABS`/`LABS_AR` data.
+
+## What the UI tests do and do not prove
+
+`helpers/ui-harness.js` extends the DOM shim just enough to fire the same `click`/`change` events a native `<button>`/`<input>` fires on Enter/Space and to look nodes up by id. It proves the wiring (what a click does to the state and to the rendered text), the semantic structure (buttons are buttons, radios are in a labelled fieldset, one `aria-current` step) and that scenario text never becomes HTML. It does **not** prove layout, colours, focus-ring appearance, contrast or responsive behaviour — those need a real browser.
 
 ## Regression snapshots: how to update them on purpose
 

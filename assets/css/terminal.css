@@ -1,91 +1,257 @@
 /* ==========================================================================
    Terminal simulator
+   v2.7 — "Arch terminal" pass, replacing v2.6's glassy macOS-style chrome.
+   No traffic-light buttons (tiling-WM terminals don't have them, and ours
+   never did anything when clicked anyway — a fake affordance is worse than
+   none). Flat, not glossy: solid surfaces, modest corners, no gradients.
+
+   Color: inside this file only, Arch Linux's own blue (#1793d1, the
+   project's real brand color) replaces amber as the dominant interactive
+   accent — cursor, focus ring, chip hover, success check, the path segment
+   of the prompt (the stock, unmodified-bash-PS1 color pairing is green
+   user@host + blue path, which happens to double as the Arch nod). Red
+   stays reserved for errors/root and green for the prompt user / safe
+   status dot, exactly as before — only the "brand" accent changes, not the
+   security semantics. The rest of the site stays amber-branded; the
+   terminal is its own self-contained box and can carry its own identity.
+
+   NOTE ON COLOR SCOPE: like any real terminal, this stays dark regardless
+   of the site's light/dark toggle, so colors below are literal hex, not
+   the `--bg-*`/`--border-*`/`--text-*` tokens (which flip in light mode).
    ========================================================================== */
 
+:root {
+  --arch-blue: #1793d1;
+  --arch-blue-light: #5fc3f0;
+  --arch-blue-glow: rgba(23, 147, 209, 0.35);
+}
+
 .terminal-window {
-  background: #070a0a;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
+  position: relative;
+  background: #090c0d;
+  border: 1px solid #232d30;
+  border-radius: 8px;
   overflow: hidden;
   box-shadow: var(--shadow-panel);
+  transition: box-shadow var(--dur-med) var(--ease-out);
+}
+
+/* A focus-visible ring around the whole window when the input is active —
+   the window itself is the control, so it should say so. */
+.terminal-window:focus-within {
+  box-shadow: var(--shadow-panel), 0 0 0 1px var(--arch-blue-glow), 0 0 20px -6px var(--arch-blue-glow);
 }
 
 .terminal-titlebar {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 10px var(--space-4);
+  gap: 10px;
+  padding: 9px var(--space-4);
   background: #101617;
-  border-bottom: 1px solid var(--border-hairline);
+  border-bottom: 1px solid #232d30;
 }
-.terminal-titlebar .tl-dot { width: 11px; height: 11px; border-radius: 50%; }
-.terminal-titlebar .tl-dot.red { background: #ff5f57; }
-.terminal-titlebar .tl-dot.yellow { background: #febc2e; }
-.terminal-titlebar .tl-dot.green { background: #28c840; }
-.terminal-titlebar .tl-title {
-  margin-left: var(--space-3);
+.tl-arch-mark {
+  width: 15px; height: 15px;
+  flex-shrink: 0;
+  fill: var(--arch-blue);
+}
+
+/* Session indicator — who you actually are right now, functioning as both a
+   terminal tab label and a privilege-level tell: green at rest, red the
+   instant the session IS root. */
+.tl-session {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 10px 2px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #232d30;
+}
+.tl-status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #6f8180;
+  transition: background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.tl-status-dot.is-user { background: var(--safe-500); box-shadow: 0 0 6px var(--safe-glow); }
+.tl-status-dot.is-root { background: var(--crit-500); box-shadow: 0 0 6px var(--crit-glow); }
+.tl-title {
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  color: var(--text-tertiary);
+  letter-spacing: -0.01em;
+  color: #a9b6b5;
+}
+/* Decorative home-preview titlebar only (no .tl-session wrapper there, no JS updates it). */
+.terminal-titlebar > .tl-title {
+  color: #6f8180;
+}
+.tl-shell {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: #6f8180;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #232d30;
 }
 
 .terminal-body {
+  position: relative;
   padding: var(--space-4);
   font-family: var(--font-mono);
   font-size: 0.86rem;
-  line-height: 1.65;
+  letter-spacing: -0.005em;
+  font-variant-ligatures: none; /* commands like `!=`, `->`, `--` must read as their literal characters */
+  line-height: 1.7;
   height: 420px;
   overflow-y: auto;
   color: #d7e2e0;
+  background: #090c0d;
+  scrollbar-width: thin;
+  scrollbar-color: #33403f transparent;
 }
+.terminal-body::-webkit-scrollbar { width: 9px; }
+.terminal-body::-webkit-scrollbar-track { background: transparent; }
+.terminal-body::-webkit-scrollbar-thumb {
+  background: #33403f;
+  border-radius: 999px;
+  border: 2px solid #090c0d;
+}
+.terminal-body::-webkit-scrollbar-thumb:hover { background: var(--arch-blue); }
 
 .terminal-line { white-space: pre-wrap; word-break: break-word; }
-.terminal-line .t-prompt { color: var(--safe-500); }
-.terminal-line .t-path { color: var(--cyan-400); }
-.terminal-line .t-err { color: var(--crit-500); }
-.terminal-line .t-dim { color: var(--text-tertiary); }
-.terminal-line .t-amber { color: var(--amber-300); }
 
-.terminal-input-row { display: flex; align-items: center; gap: 8px; }
-.terminal-input-row .t-prompt { color: var(--safe-500); flex-shrink: 0; }
-.terminal-input-row .t-path { color: var(--cyan-400); flex-shrink: 0; }
+/* Scoped to the whole window (not just .terminal-line) so the same palette
+   covers scrollback output AND the live prompt-info line below it. */
+.terminal-window .t-prompt { color: var(--safe-500); }
+.terminal-window .t-path { color: var(--arch-blue-light); }
+.terminal-window .t-err { color: var(--crit-500); }
+.terminal-window .t-dim { color: #6f8180; }
+.terminal-window .t-amber { color: var(--amber-300); }
+.terminal-window .t-arch { color: var(--arch-blue-light); }
+
+/* Success confirmations — the result of an action that worked. */
+.terminal-window .t-ok { color: var(--arch-blue-light); }
+.terminal-window .t-ok::before { content: "✓ "; opacity: 0.85; }
+
+/* Prompt glyph — carries the privilege tell on its own (green at rest, red
+   the instant the session IS root), same language as the titlebar dot. */
+.t-glyph-user { color: var(--safe-500); }
+.t-glyph-root { color: var(--crit-500); text-shadow: 0 0 8px var(--crit-glow); }
+
+/* "Why" explanations — the actual lesson, repeated across 30+ commands, so
+   it gets a distinct callout instead of blending into the next dim line. */
+.terminal-line .t-hint {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 7px 12px;
+  max-width: min(100%, 64ch);
+  border-left: 2px solid var(--arch-blue);
+  border-radius: 0 4px 4px 0;
+  background: rgba(23, 147, 209, 0.08);
+  color: #a9b6b5;
+  font-size: 0.93em;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.terminal-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  margin: 0 2px;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.terminal-input-row:focus-within { background: rgba(255, 255, 255, 0.03); }
+
+/* Context line (user@host cwd) shown above the input row — the first half
+   of the two-line starship/powerlevel10k-style prompt. */
+.terminal-prompt-info {
+  padding: 0 10px;
+  margin-bottom: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: -0.01em;
+}
+.terminal-prompt-glyph {
+  flex-shrink: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
 
 .terminal-input {
   flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   outline: none;
-  color: var(--text-primary);
+  color: #eef2f1;
   font-family: var(--font-mono);
   font-size: 0.86rem;
-  caret-color: var(--amber-500);
+  font-variant-ligatures: none;
+  caret-color: var(--arch-blue-light);
 }
 
 .terminal-cursor {
   display: inline-block;
   width: 8px; height: 15px;
-  background: var(--amber-500);
+  background: var(--arch-blue-light);
+  box-shadow: 0 0 6px var(--arch-blue-glow);
   margin-left: 2px;
   animation: blink 1s step-end infinite;
   vertical-align: middle;
 }
 
+/* Quick-command strip — a horizontal scroller with faded edges rather than
+   a wrapping pill grid, since the command list has grown past one row. */
 .terminal-hint-row {
   display: flex;
   gap: var(--space-2);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border-hairline);
-  background: #0d1213;
+  border-top: 1px solid #232d30;
+  background: #0c1011;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 20px, black calc(100% - 20px), transparent);
+  mask-image: linear-gradient(90deg, transparent, black 20px, black calc(100% - 20px), transparent);
 }
+.terminal-hint-row::-webkit-scrollbar { display: none; }
 .terminal-hint-row button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-hairline);
-  color: var(--text-secondary);
-  padding: 4px 10px;
-  border-radius: 999px;
+  letter-spacing: -0.01em;
+  background: #161d1f;
+  border: 1px solid #232d30;
+  color: #a9b6b5;
+  padding: 5px 12px 5px 10px;
+  border-radius: 5px;
   cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
-.terminal-hint-row button:hover { border-color: var(--amber-500); color: var(--amber-300); }
+.terminal-hint-row button::before {
+  content: "❯";
+  color: var(--arch-blue);
+  font-size: 0.8em;
+}
+.terminal-hint-row button:hover {
+  border-color: var(--arch-blue);
+  color: var(--arch-blue-light);
+  background: #11161a;
+  transform: translateY(-1px);
+}
+.terminal-hint-row button:hover::before { color: var(--arch-blue-light); }
+.terminal-hint-row button:active { transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-hint-row button { transition: none; }
+  .terminal-window { transition: none; }
+}

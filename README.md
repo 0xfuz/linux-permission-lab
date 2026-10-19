@@ -1,8 +1,8 @@
 # Linux Permission Lab
 
-**v2.3** — An interactive, browser-only playground for learning the Linux file permission model — the owner/group/others triad, octal and symbolic notation, ownership, ACLs, and the SUID/SGID/sticky special bits — through simulation, guided labs, challenges and quizzes rather than memorization.
+**v2.12** — An interactive, browser-only playground for learning the Linux file permission model AND the system-investigation skills built on top of it — the owner/group/others triad, ACLs, SUID/SGID/sticky, plus process, log, service and network enumeration — through simulation, guided labs, challenges, state-checked terminal scenarios and quizzes rather than memorization.
 
-No backend. No database. No login. No build step. Open `index.html` and it runs.
+No backend. No database. No login. No build step. Serve the folder with any static server and it runs (see *Installation* — browsers block ES modules on `file://`).
 
 **[Live demo →](https://0xfuz.github.io/linux-permission-lab/)**
 
@@ -14,45 +14,18 @@ The fastest way to see it is to open the live demo link above; screenshots below
 
 ---
 
-## What's new in v2.3
+## What's new
 
-- **Content expansion** — 2 new Learn topics (Special File Attributes/chattr, su vs sudo), 13 new Quiz questions (ACL mask math, Symlinks, chattr, su vs sudo), 1 new Advanced-tier Lab ("Grant Access Without Groups"), and 8 new Challenges (2 per tier) — all tying back into the ACL and symlink features above, fully bilingual. Totals are now 21 Learn topics, 113 Quiz questions, 11 Labs, and 88 Challenges.
-- **Guided Path** — a new stepper on the Progress dashboard sequencing Learn → Labs → Challenges → Quiz, with a "Continue" button that jumps straight to your next unfinished phase (and, for Learn, your next unread topic). Expanding a Learn topic now marks it read; a new 13th achievement, Path Complete, unlocks once every phase is done.
-- **Interactive ACL** — `getfacl`/`setfacl` are now real terminal commands, not just a Learn topic: add or remove named user/group entries, watch the mask auto-recalculate exactly like real POSIX ACLs, and see the classic `+` suffix appear in `ls -l`/`stat` (the app's config file ships with one seeded example to explore).
-- **Symlink permission scenario** — 2 annotated symlinks in the fake filesystem (a benign relative link, and a link inside world-writable `/tmp` pointing at a restricted log) teaching that a symlink's own mode is always cosmetic `777`; `ls -l`/`stat` display it correctly, and `cat`/`chmod`/`chown`/`chgrp` all follow the link to its real target, exactly like the real commands do without `-h`.
-- **Shareable/exportable progress** — a new panel on the Progress dashboard to copy a one-line shareable summary or download a full JSON snapshot (level, XP, per-module completion, achievements) of your local progress.
-- **Redesigned home page** — a real-numbers stats bar in the hero, a "How it works" (Learn → Practice → Prove it) section, elevated feature-card hover states, and a proper multi-column footer.
-- Both new features are fully bilingual (English/Arabic) UI chrome; the new terminal help text follows the existing scope note and stays English-only.
-
-## What's new in v2.2
-
-- **Full Arabic (العربية) translation** with a one-click language toggle in the sidebar — persists across visits.
-- **RTL layout** — the sidebar, navigation, cards and forms all mirror correctly under `dir="rtl"`, while code/commands/terminal output stay left-to-right since shell syntax is universal.
-- Every UI string, all 19 Learn topics, all 10 Labs, all 80 Challenges, all 100 Quiz questions, all 12 Achievements, and the Cheat Sheet reference table are translated.
-- Arabic uses the Cairo typeface; English keeps the existing Space Grotesk/Inter/JetBrains Mono stack.
-- Scope note: the Cheat Sheet's supplementary troubleshooting prose/best-practice list and the terminal's `help` text remain English-only in this release — see the Roadmap.
-
-## What's new in v2.1
-
-- **21 Learn topics** — a full reference curriculum with diagrams, examples, command references, tips and warnings
-- **11 Interactive Labs** — guided, multi-step walkthroughs from a first SSH key fix to a capstone permission audit and an ACL-based access grant
-- **88 Challenges** — 22 each across Beginner / Intermediate / Advanced / Expert
-- **113-question Quiz** — multiple-choice rounds across every topic, with instant explanations
-- **Achievements** — 13 unlockable badges derived from your actual progress
-- **Progress dashboard** — XP, levels, stats, and a printable certificate once you clear the curriculum
-- **Expanded fake filesystem** — 59 files across `/etc`, `/var`, `/opt`, `/usr`, `/tmp`, `/home`, `/root`, now with owner/group metadata
-- **Expanded terminal** — `find`, `grep`, `touch`, `mkdir`, `rm`, `mv`, `cp`, `tree`, `stat`, `id`, `groups`, `chown`, `chgrp`, `ls -la`, simulated `nano`/`vim`
-- **Author credit** — footer, hero badge and a full About-the-author section, none of it intrusive
-
-Every original v1 feature (Simulator, Filesystem, Calculator, Terminal, Challenges, Cheat Sheet, About, Security Analyzer, SUID/SGID/Sticky visualizer) is unchanged in behavior and still fully functional.
+Latest: **v2.12** (v2.12.1 tightens the scenario validators: effective-ACL world-write detection, see CHANGELOG) — Hands-on scenarios under the Terminal: four challenges graded by the simulated filesystem state (not by a typed answer) and a first guided Investigation (evidence → diagnosis → fix → verify). Previously: **v2.11** — `find` with real syntax and `--help` for every command. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
 ## Features
 
 - **Permission Simulator** — toggle owner/group/others read, write and execute like LED switches; symbolic, octal, binary and the `chmod` command all update live.
-- **Fake Filesystem** — 59 files plus 2 symlinks across a realistic tree (`/etc/shadow`, `/etc/sudoers`, SSH keys, `database.conf`, `backup.sql`, `/var/www/uploads`, `/tmp`, service-account homes) with owner/group metadata.
-- **Terminal Simulator** — a simulated shell supporting 27 commands: `help`, `pwd`, `whoami`, `id`, `groups`, `ls`/`ls -l`/`ls -la`, `cd`, `cat`, `tree`, `stat`, `find`, `grep`, `touch`, `mkdir`, `rm`, `mv`, `cp`, `nano`/`vim` (simulated notice), `chmod`, `chown`, `chgrp`, `getfacl`, `setfacl`, `history`, `clear`. No real commands are ever executed.
+- **Fake Filesystem** — 62 files plus 2 symlinks across a realistic tree (`/etc/shadow`, `/etc/sudoers`, SSH keys, `database.conf`, `backup.sql`, `/var/www/uploads`, `/tmp`, service-account homes) with owner/group metadata.
+- **Terminal Simulator** — a simulated shell supporting 47 commands with real permission enforcement, now including process/log/service/network investigation: `help`, `pwd`, `whoami`, `id`, `groups`, `su`, `sudo`, `exit`, `umask`, `ln -s`, `ls`/`ls -l`/`ls -la`, `cd`, `cat`, `tree`, `stat`, `find`, `grep`, `touch`, `mkdir`, `rm`, `mv`, `cp`, `nano`/`vim` (simulated notice), `chmod`, `chown`, `chgrp`, `getfacl`, `setfacl`, `ps`, `who`, `w`, `last`, `lastlog`, `uname`, `df`, `du`, `ss`/`netstat`, `systemctl`, `journalctl`, `dmesg`, `getcap`, `crontab`, `history`, `clear`. No real commands are ever executed.
+- **Hands-on Scenarios (new in v2.12)** — a panel under the Terminal with four challenges and one guided Investigation. Opening a scenario loads its files into the *same* simulated filesystem under `/srv/lab/<id>` and moves your shell there. You fix it with real terminal commands; the verdict comes from asking the simulator what each account can now do (read/write/traverse, including ACLs), not from which command you typed — so any legitimate fix passes and an over-broad one (`chmod 777`, exposing a secret) is rejected. Passing fixes that are broader than necessary get an explicit "more permissive than necessary" note. Each scenario has progressive hints, a reset, and Arabic/English text. The Investigation walks *incident → evidence → diagnosis → fix → verify*: the diagnosis unlocks only after you have gathered the evidence, wrong diagnoses are answered from the live state, and you must re-check as the affected account to finish.
 - **Permission Calculator** — type octal or symbolic notation in either direction, with one-click presets.
 - **Security Analyzer** — every permission state is graded Safe, Warning or Critical with a plain-language explanation.
 - **SUID / SGID / Sticky Visualizer** — what each special bit does, a real-world example, and its security implications.
@@ -86,8 +59,7 @@ cd linux-permission-lab
 
 Then either:
 
-- **Open directly** — double-click `index.html`. If your browser blocks ES module scripts over `file://` (Chrome does), the page shows an on-screen notice with the fix.
-- **Serve locally** (recommended):
+- **Serve locally** (recommended — the app uses ES modules, which Chrome blocks over `file://`):
 
   ```bash
   python3 -m http.server 8080
@@ -99,6 +71,8 @@ Then either:
   ```bash
   npx serve .
   ```
+
+- **Open directly** — double-click `index.html` only works in browsers that allow ES modules on `file://` (Firefox does; Chrome does not). When blocked, the page shows an on-screen notice.
 
 ---
 
@@ -125,7 +99,7 @@ This repo ships a `deploy.yml` workflow that runs the full test suite on every p
 3. Push to `main`. The **CI** workflow (`ci.yml`) and **Deploy** workflow (`deploy.yml`) both run automatically — check the **Actions** tab for progress and the live URL once it finishes.
 4. You can also trigger a redeploy manually from the Actions tab (`workflow_dispatch`) without a new commit — useful if Pages ever needs a kick without a code change.
 
-No build step either way — the repository root is the deployable site as-is.
+No build step either way. Option B publishes only `index.html` and `assets/` plus `LICENSE` (the workflow stages them into a `_site/` folder first), so tests, screenshots and CI files don't ship to the live site.
 
 ---
 
@@ -143,6 +117,7 @@ linux-permission-lab/
     │   ├── components.css    # buttons, LED toggles, badges, tooltips, toasts, modal, quiz options, author credit
     │   ├── cards.css         # feature cards, filesystem tree, challenge cards, learn cards, achievement badges, cheat sheet
     │   ├── terminal.css      # terminal window chrome and typing UI
+    │   ├── scenarios.css     # v2.12 — Hands-on scenarios panel (stepper, checks, diagnosis radios, .sr-only)
     │   ├── animations.css    # keyframes and motion utility classes
     │   ├── responsive.css    # tablet and mobile breakpoints
     │   └── rtl.css           # RTL layout overrides for Arabic
@@ -151,8 +126,16 @@ linux-permission-lab/
         ├── i18n.js             # locale state, UI-string dictionary, RTL switching, static-DOM translation
         ├── converter.js        # symbolic ⇄ octal ⇄ binary math (single source of truth)
         ├── simulator.js        # Module 1 — permission editor + live output
-        ├── filesystem.js       # Module 2 — fake filesystem tree (59 files + 2 symlinks) + path resolution
-        ├── terminal.js         # Module 3 — simulated shell (27 commands)
+        ├── filesystem.js       # Module 2 — fake filesystem tree (62 files + 2 symlinks) + path resolution
+        ├── terminal.js         # Module 3 — simulated shell: prompt, dispatch table, tab completion, DOM wiring (288 lines, orchestration only as of v2.10; v2.12 adds a command-observer hook)
+        ├── terminal-state.js         # live session state — cwd, current user, su stack, sudo cache (pure)
+        ├── terminal-helpers.js       # printLine, path resolution, shared deny/visibility logic
+        ├── terminal-commands-nav.js      # ls/cd/cat/tree/stat/find/grep/touch/mkdir/rm/mv/cp/ln/editor
+        ├── terminal-commands-perm.js     # chmod/chown/chgrp/getfacl/setfacl/umask
+        ├── terminal-commands-identity.js # id/groups/su/exit/sudo
+        ├── terminal-commands-sysinfo.js  # ps/who/w/last/lastlog/uname/df/du/ss/systemctl/journalctl/dmesg/getcap/crontab
+        ├── scenarios.js / scenarios-data.js / scenarios-data.ar.js  # v2.12 — Hands-on scenarios panel (pure view builders + controller), challenge + investigation data, Arabic overlay
+        ├── scenario-progress.js        # v2.12 — completion/XP persistence (own localStorage key, backward compatible)
         ├── calculator.js       # Module 4 — standalone converter UI
         ├── security.js         # Module 5 — security analyzer
         ├── visualizer.js       # Module 6 — SUID/SGID/sticky explainer
@@ -160,7 +143,21 @@ linux-permission-lab/
         ├── labs.js / labs-data.js / labs-data.ar.js       # Module 10 — interactive labs + Arabic overlay
         ├── challenges.js / challenges-data.js / challenges-data.ar.js   # Module 7 — 88 challenges + Arabic overlay
         ├── quiz.js / quiz-data.js / quiz-data.ar.js       # Module 8 — 113 quiz questions + Arabic overlay
-        ├── cheatsheet-data.ar.js  # Arabic overlay for the cheat sheet reference table
+        ├── cheatsheet-data.ar.js  # Arabic overlay for the octal-mode cheat sheet table
+        ├── terminal-commands-data.js / terminal-commands-data.ar.js  # all 47 terminal commands reference + Arabic overlay
+        ├── engine/
+        │   ├── users.js        # users/groups, access-control rules, sticky bit, umask math (pure)
+        │   ├── links.js        # ln -s placement rules (pure)
+        │   ├── acl.js          # ACL mask math (pure)
+        │   ├── fs-model.js     # tree lookup + symlink write-target rule (pure)
+        │   ├── scenario.js     # v2.12 — grafts a scenario into the shared FS_TREE, state checks, hint + challenge sessions (pure)
+        │   ├── investigation.js # v2.12 — evidence → diagnosis → fix → verify state machine (pure)
+        │   ├── sysinfo.js      # processes/services/sockets/journal/sessions/disk — static data + filters (pure)
+        │   ├── complete.js     # tab-completion matching rules (pure)
+        │   ├── shell-parse.js  # quote-aware tokenizer + safe file-name rules (pure)
+        │   └── safe-html.js    # escapeHTML + terminal output sanitizer (pure)
+        ├── boot-lang.js        # pre-paint lang/dir (classic script; was inline before the CSP)
+        ├── boot-fallback.js    # file:// module-blocked notice (classic script)
         ├── achievements.js     # derived achievement/badge computation
         ├── progress.js         # Module 12 — XP/level dashboard + certificate
         └── utils.js            # shared DOM, storage, clipboard, toast and progress-event helpers
@@ -189,7 +186,27 @@ HTML5 · CSS3 (custom properties, Flexbox, Grid) · Vanilla JavaScript (ES6 modu
 - [x] Export challenge/quiz/lab progress as a shareable JSON badge
 - [x] A guided "path" mode that sequences Learn → Labs → Challenges → Quiz per topic
 - [x] Add ACL (`getfacl`/`setfacl`) as a fully interactive terminal command, not just a Learn topic
-- [ ] Localize the terminal simulator's command list and Learn content
+- [x] Multiple users in the terminal (`su`/`sudo`) with real permission enforcement, `umask`, `ln -s`
+- [x] System-investigation commands (`ps`, `journalctl`, `ss`, `systemctl`, `getcap`, `find -perm`, `crontab -l`, `sudo -l`, …)
+- [x] Tab completion in the terminal (v2.9)
+- [x] Localize the Learn curriculum and the terminal *command reference* (Arabic overlays). Terminal *output* stays English on purpose — it quotes what a real shell prints.
+- [x] Terminal-aware challenges that verify the simulated state instead of a form answer (v2.12: 4 challenges)
+- [x] Investigation Mode foundation — a reusable evidence → diagnosis → fix → verify framework with one scenario (v2.12)
+- [ ] More Investigation scenarios on the v2.12 framework (writable cron script, sudo NOPASSWD, a leaked SUID helper) plus matching Learn content
+- [ ] Group-membership commands (`usermod -aG`, `gpasswd`, `newgrp`) so membership problems can be fixed in the terminal, not just preset
+- [ ] Pipes and redirection (`ls -l | grep conf`, `echo x > file`)
+- [ ] Verify the scenarios' expected behaviour against a real Linux system and publish the comparison (not done in v2.12 — see *Simulation scope*)
+
+---
+
+## Simulation scope and verification status
+
+Linux Permission Lab is a **teaching simulation**, not Linux. Every command runs against an in-memory model in your browser — nothing touches your machine — and the model implements the *rules* the lessons teach: owner/group/others classes, directory search (`x`) along the path, named-ACL entries and mask, sticky/SUID/SGID, ownership-change rules, `umask`, symlink targets.
+
+- **What is tested:** the 582 automated tests check the *simulator's* behaviour against the rules as the simulator implements them, including every scenario's accepted and rejected fixes. That makes the lab internally consistent; it does **not** prove byte-for-byte equivalence with a real kernel.
+- **What was not done:** the v2.12 scenarios and their expected outcomes were **not** cross-checked on a real Linux machine in this release. The behaviours they rely on (traversal needing `x` on every parent directory, owner-only `chmod`, `chgrp` limited to groups you belong to or `sudo`, a named ACL entry needing `x` on the directory above) are standard POSIX/ACL semantics, but treat the lab as a model, not a reference implementation.
+- **Known simulator differences relevant to scenarios:** the ACL model has only named user/group entries and the mask — there is no separate `other::` entry (the others class is the mode bits);  the ACL mask is always recalculated as the union of the group bits and the named entries, so the real-world "`chmod` silently masks a named ACL entry" trap cannot be reproduced; there are no group-membership commands (scenarios can only *preset* memberships); `ls -d` and `namei` are not implemented (`ls -l <dir>` lists its children); output and live evidence text are English even in the Arabic UI (labels, tasks, hints and explanations are translated); only one scenario is active at a time, and an in-progress scenario is not restored after a page reload (only completions are saved).
+- **Scoring:** scenario completion adds its XP to your total and appears in the exported progress snapshot (`scenarios`, `xpBreakdown.scenarios`). Scenarios do not gate the certificate.
 
 ---
 
@@ -199,6 +216,7 @@ Issues and pull requests are welcome. This is a fully open-source project — MI
 
 - New **challenges** go in `assets/js/challenges-data.js`, following the existing `c(id, tier, xp, title, scenario, description, target, hints, explanation)` shape.
 - New **quiz questions** go in `assets/js/quiz-data.js`, following the `q(id, topic, question, options, answerIndex, explanation)` shape.
+- New **scenarios** (state-checked challenges and investigations) go in `assets/js/scenarios-data.js` — see *Authoring scenarios* below.
 - New **labs** go in `assets/js/labs-data.js`, chaining `answerStep()` and `infoStep()` calls inside a `lab()`.
 - New **Learn topics** go in `assets/js/learn.js`'s `LEARN_TOPICS` array — reuse an existing diagram builder (`triadDiagram`, `octalDiagram`, `bitPositionDiagram`, `beforeAfterDiagram`, `gaugeDiagram`) rather than inventing a new one unless genuinely necessary.
 
@@ -225,3 +243,33 @@ Released under the [MIT License](LICENSE) — free to use, modify and deploy for
 ## Disclaimer
 
 This project teaches defensive understanding of the Linux permission model. It does not include, link to, or endorse any offensive or exploitation tooling — the SUID/SGID/sticky explanations, and every Advanced/Expert-tier challenge involving them, are deliberately limited to *what the bits do and how to reason about their risk*, not how to weaponize them.
+
+---
+
+## Authoring scenarios
+
+A scenario is plain data in `assets/js/scenarios-data.js`, graded by the simulated state. Build it from the helpers in `assets/js/engine/scenario.js`:
+
+```js
+{
+  id: "tc05", kind: "challenge", xp: 100,          // unique id (not an existing challenge id)
+  title: "…", objectives: ["…", "…"],              // what the learner should be able to do afterwards
+  task: "…",                                       // states the goal AND the constraints (who may / may not get access)
+  build: () => [                                   // FRESH nodes every call → deterministic reset
+    dir("conf", "750", [ file("app.yml", "640", { acl: [{ type: "user", id: "monitoring", perms: "r--" }] }) ]),
+  ],                                               // lives under /srv/lab/tc05; optional: users, startAs, startDir
+  checks: [                                        // judged on the live state, never on typed text
+    canAccess("reads", "monitoring", "/srv/lab/tc05/conf/app.yml", "r"),          // includes traversal
+    cannotAccess("no-write", "monitoring", "/srv/lab/tc05/conf/app.yml", "w"),    // fails if the file was deleted
+    othersCannot("others", "/srv/lab/tc05/conf/app.yml", "r", ["user", "monitoring"]),
+    noWorldWriteUnder("no-777", "/srv/lab/tc05"),
+    modeWithin("tight", "/srv/lab/tc05/conf", "750", { level: "advisory" }),      // advisory = "works, but broader than necessary"
+  ],
+  hints: ["least revealing…", "…", "most revealing"],   // at least three, in order
+  completion: "Why the fix works, and why the broader alternatives are worse.",
+}
+```
+
+Guidelines: describe the *end state and constraints*, not a command; make each label say exactly what its check enforces (`modeWithin` compares mode bits only — use `accessWithin` for claims about what accounts can do, and `noWorldWriteUnder`/`othersCannot` already count ACL entries); include at least one `required` check that rules out the lazy fix (`chmod 777`, deleting the file, exposing a secret); use `advisory` checks to teach least privilege; never recommend `chmod 777` in a hint. For an investigation also provide `incident`, `evidence[]` (`matches(ev)` + `finding()` that quotes the real state), `diagnoses[]` (exactly one `correct`; every `explain()` should read the live state), per-phase `hints`, `verify(ev)` and `summarize()`.
+
+Then: (1) add the Arabic entry to `scenarios-data.ar.js` (same array lengths, same check/evidence/diagnosis ids — `tests/regression/scenarios-i18n.test.js` enforces this); (2) add at least one accepted fix to `SOLUTIONS` and the tempting-but-wrong ones to `SHORTCUTS` in `tests/regression/scenarios.test.js`; (3) run `npm test`.

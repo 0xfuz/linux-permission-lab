@@ -1,0 +1,63 @@
+/* scenarios.css (v2.12) — Hands-on scenarios panel under the Terminal.
+   Reuses the existing tokens, .challenge-card, .badge, .readout and
+   .feedback-* classes; only the pieces unique to this panel live here.
+   Logical properties (inline-start/end) keep it correct in RTL. */
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.scenario-panel { margin-block-start: var(--space-6, 32px); }
+.sc-intro { margin-block-end: var(--space-4, 16px); }
+.sc-panel-title { margin: 0 0 6px; }
+.sc-view { display: flex; flex-direction: column; gap: var(--space-4, 16px); min-width: 0; }
+.sc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.sc-title { margin: 0; overflow-wrap: anywhere; }
+.sc-block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sc-block h4 { margin: 0; }
+.sc-list, .sc-hints { margin: 0; padding-inline-start: 1.25em; color: var(--text-secondary); }
+.sc-hints { list-style: decimal; display: flex; flex-direction: column; gap: 8px; padding-inline-start: 0; list-style-position: inside; }
+.sc-actions { align-items: center; gap: 10px; }
+.sc-explain { color: var(--text-secondary); font-size: 0.9rem; margin: 6px 0 0; overflow-wrap: anywhere; }
+
+.sc-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sc-check {
+  display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px;
+  background: var(--bg-inset); border: 1px solid var(--border-hairline); border-radius: 8px;
+}
+.sc-check-icon { font-family: var(--font-mono); font-weight: 700; inline-size: 1.2em; flex: none; }
+.sc-check-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.sc-pass { border-color: rgba(61, 220, 132, 0.45); }
+.sc-pass .sc-check-icon { color: var(--safe-500); }
+.sc-fail { border-color: rgba(255, 92, 92, 0.45); }
+.sc-fail .sc-check-icon { color: var(--crit-500); }
+.sc-pending .sc-check-icon { color: var(--text-tertiary, var(--text-secondary)); }
+.sc-detail { font-size: 0.8rem; color: var(--text-secondary); }
+.sc-mono { font-family: var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.sc-steps {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px;
+}
+.sc-step {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--border-hairline); color: var(--text-secondary); font-size: 0.8rem;
+}
+.sc-step-n { font-family: var(--font-mono); }
+.sc-step-done { border-color: rgba(61, 220, 132, 0.45); color: var(--safe-500); }
+.sc-step-current { border-color: var(--warn-500); color: var(--text-primary, inherit); font-weight: 600; }
+
+.sc-fieldset { border: 1px solid var(--border-hairline); border-radius: 8px; padding: 12px; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.sc-fieldset legend { padding-inline: 6px; }
+.sc-radio { display: flex; gap: 10px; align-items: flex-start; padding: 8px; border-radius: 6px; cursor: pointer; }
+.sc-radio:hover { background: var(--bg-inset); }
+.sc-radio input { margin-block-start: 3px; flex: none; }
+.sc-radio input:focus-visible { outline: 2px solid var(--warn-500); outline-offset: 2px; }
+.sc-diag-entry { padding: 10px 12px; border: 1px solid var(--border-hairline); border-radius: 8px; }
+.sc-diag-entry p { margin: 0 0 6px; overflow-wrap: anywhere; }
+.sc-verdict { font-weight: 600; margin: 0; }
+
+@media (max-width: 640px) {
+  .sc-actions .btn { flex: 1 1 auto; }
+  .sc-step { font-size: 0.75rem; }
+}

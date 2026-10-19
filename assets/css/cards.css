@@ -124,6 +124,21 @@ table.cheat-table td { color: var(--text-secondary); font-family: var(--font-mon
 table.cheat-table td.desc { font-family: var(--font-body); white-space: normal; color: var(--text-primary); }
 table.cheat-table tbody tr:hover { background: var(--bg-elevated); }
 table.cheat-table tbody tr[hidden] { display: none; }
+table.cheat-table td.cmd { white-space: normal; color: var(--amber-300); }
+table.cheat-table td.requires { font-family: var(--font-body); font-size: 0.82em; font-style: italic; color: var(--text-tertiary); }
+
+/* Category separator row inside the all-commands table — a label, not a data row. */
+table.cheat-table tr.cheat-cat-row td {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--amber-500);
+  background: var(--bg-inset);
+  border-bottom: 1px solid var(--border-hairline);
+  white-space: nowrap;
+}
+table.cheat-table tr.cheat-cat-row:hover { background: var(--bg-inset); }
 
 .cheat-example-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: var(--space-3); margin: var(--space-5) 0; }
 .cheat-example { background: var(--bg-inset); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); font-family: var(--font-mono); }

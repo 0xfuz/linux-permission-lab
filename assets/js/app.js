@@ -12,9 +12,12 @@
 import { qs, qsa, el, debounce, attachRippleToAll, loadState, saveState, onProgressChanged } from "./utils.js";
 import { CHEATSHEET_ROWS } from "./converter.js";
 import { CHEATSHEET_ROWS_AR } from "./cheatsheet-data.ar.js";
+import { TERMINAL_COMMANDS, TERMINAL_COMMAND_CATEGORIES } from "./terminal-commands-data.js";
+import { TERMINAL_COMMANDS_AR, TERMINAL_COMMAND_CATEGORIES_AR } from "./terminal-commands-data.ar.js";
 import { initSimulator } from "./simulator.js";
 import { initCalculator } from "./calculator.js";
 import { initTerminal } from "./terminal.js";
+import { initScenarios } from "./scenarios.js";
 import { initChallenges } from "./challenges.js";
 import { initLearn } from "./learn.js";
 import { initLabs } from "./labs.js";
@@ -48,7 +51,7 @@ function lazyInitView(viewId) {
   initializedViews.add(viewId);
   if (viewId === "simulator") initSimulator();
   if (viewId === "calculator") initCalculator();
-  if (viewId === "terminal") initTerminal();
+  if (viewId === "terminal") { initTerminal(); initScenarios(); }
   if (viewId === "learn") initLearn();
   if (viewId === "labs") initLabs();
   if (viewId === "challenges") initChallenges();
@@ -133,17 +136,50 @@ function initLanguage() {
 
 function initCheatSheet() {
   renderCheatSheetRows();
+  renderCommandRows();
   const search = qs("#cheat-search-input");
   if (search) {
     search.addEventListener("input", debounce(() => {
       const term = search.value.trim().toLowerCase();
-      qsa("#cheat-table-body tr").forEach((tr) => {
+      // One search box filters every table on the page.
+      qsa("#cheat-table-body tr, #cmd-table-body tr[data-search]").forEach((tr) => {
         const matches = !term || tr.dataset.search.includes(term);
         tr.hidden = !matches;
       });
+      // A category separator row has no data-search of its own — hide it
+      // too once every row until the next separator is hidden, so a search
+      // doesn't leave a stack of empty category headers behind.
+      qsa("#cmd-table-body tr.cheat-cat-row").forEach((cat) => {
+        let sib = cat.nextElementSibling;
+        let anyVisible = false;
+        while (sib && !sib.classList.contains("cheat-cat-row")) {
+          if (!sib.hidden) anyVisible = true;
+          sib = sib.nextElementSibling;
+        }
+        cat.hidden = !anyVisible;
+      });
     }, 120));
   }
-  onLocaleChanged(renderCheatSheetRows);
+  onLocaleChanged(() => { renderCheatSheetRows(); renderCommandRows(); });
+}
+
+function renderCommandRows() {
+  const tbody = qs("#cmd-table-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  const rows = localize(TERMINAL_COMMANDS, TERMINAL_COMMANDS_AR);
+  const ar = getLocale() === "ar";
+  TERMINAL_COMMAND_CATEGORIES.forEach((cat) => {
+    const label = ar ? (TERMINAL_COMMAND_CATEGORIES_AR[cat.id] || cat.label) : cat.label;
+    tbody.append(el("tr", { class: "cheat-cat-row" }, [el("td", { colspan: "3" }, label)]));
+    rows.filter((r) => r.category === cat.id).forEach((row) => {
+      tbody.append(el("tr", { "data-search": `${row.cmd} ${row.desc} ${row.requires || ""}`.toLowerCase() }, [
+        el("td", { class: "cmd" }, row.cmd),
+        el("td", { class: "desc" }, row.desc),
+        el("td", { class: "desc requires" }, row.requires || "—"),
+      ]));
+    });
+  });
 }
 
 function renderCheatSheetRows() {

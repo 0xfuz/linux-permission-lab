@@ -154,7 +154,7 @@ function render() {
   const cmdText = qs("#chmod-cmd-text");
   if (cmdText) {
     const cmd = stateToChmodCommand(state, currentFilename);
-    cmdText.innerHTML = `<span class="flag">chmod</span> ${stateToOctal(state)} ${currentFilename}`;
+    cmdText.replaceChildren(el("span", { class: "flag" }, ["chmod"]), ` ${stateToOctal(state)} ${currentFilename}`);
     cmdText.dataset.raw = cmd;
   }
 
