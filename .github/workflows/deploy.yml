@@ -33,10 +33,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Upload the whole repo as the Pages artifact
+      # Publish only what the site needs — not tests/, docs/ or .github/.
+      - name: Stage the site
+        run: |
+          mkdir _site
+          cp index.html LICENSE _site/
+          cp -r assets _site/assets
+          touch _site/.nojekyll
+
+      - name: Upload the site as the Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy
         id: deployment

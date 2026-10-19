@@ -7,7 +7,7 @@
  * localization via labs-data.ar.js, merged in step-by-step.
  */
 
-import { qs, qsa, el, toast, loadState, saveState, emitProgressChanged } from "./utils.js";
+import { qs, qsa, el, toast, loadState, saveState, emitProgressChanged, setFeedback } from "./utils.js";
 import { validateOctalInput } from "./converter.js";
 import { LABS } from "./labs-data.js";
 import { LABS_AR } from "./labs-data.ar.js";
@@ -130,17 +130,17 @@ function checkLabAnswer() {
   const input = qs("#lab-answer-input");
   const feedback = qs("#lab-answer-feedback");
   const { valid, message } = validateOctalInput(input.value);
-  if (!valid) { feedback.innerHTML = `<span style="color:var(--crit-500)">${message}</span>`; return; }
+  if (!valid) { setFeedback(feedback, message, "crit"); return; }
 
   const normalized = input.value.trim().replace(/^0+(?=\d)/, "");
   const target = step.target.replace(/^0+(?=\d)/, "");
   const correct = normalized === target || normalized.padStart(target.length, "0") === target;
 
   if (correct) {
-    feedback.innerHTML = `<span style="color:var(--safe-500)">${t("labs.correct")}</span>`;
+    setFeedback(feedback, t("labs.correct"), "safe");
     setTimeout(() => { stepIndex += 1; renderStep(); }, 500);
   } else {
-    feedback.innerHTML = `<span style="color:var(--warn-500)">${t("labs.incorrect")}</span>`;
+    setFeedback(feedback, t("labs.incorrect"), "warn");
   }
 }
 

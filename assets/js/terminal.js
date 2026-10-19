@@ -1,47 +1,99 @@
 /**
  * terminal.js
- * Module 3 — Terminal Simulator (expanded in v2.1).
+ * Module 3 — Terminal Simulator. Orchestrator only, as of v2.9: session
+ * state lives in terminal-state.js, shared plumbing in terminal-helpers.js,
+ * and every command's own behavior lives in one of the four
+ * terminal-commands-*.js files (nav/files, permissions, identity/privilege,
+ * system investigation) — split out of what had grown into a single
+ * 1000+ line file. This file keeps only what's genuinely cross-cutting:
+ * the prompt, the help text, the dispatch table, tab completion, and the
+ * DOM wiring in initTerminal().
+ *
  * A fully fake terminal: a fixed set of recognized commands operate against
  * the same in-memory filesystem tree used by the Filesystem module. Nothing
  * here executes real shell commands or touches a real disk.
  */
 
-import { el, qs } from "./utils.js";
-import { FS_TREE, findNode, resolvePath, parentPath, flattenTree, resolveSymlink } from "./filesystem.js";
-import { octalToState, stateToSymbolic, triad, triadToSymbol } from "./converter.js";
-import { permsIntersect, permsUnion, recalcAclMask } from "./engine/acl.js";
-import { resolveWriteTarget } from "./engine/fs-model.js";
+import { qs } from "./utils.js";
+import { FS_TREE, findNode } from "./filesystem.js";
+import { checkPathAccess } from "./engine/users.js";
+import { escapeHTML } from "./engine/safe-html.js";
+import { tokenize } from "./engine/shell-parse.js";
+import { completeLine } from "./engine/complete.js";
 
-const HOSTNAME = "learner@permission-lab";
-let cwd = "/home/user";
+import {
+  HOST, cwd, session, me,
+  resetTerminalState, getTerminalState,
+} from "./terminal-state.js";
+import { printLine, resolveArg, printCommandHelp } from "./terminal-helpers.js";
+
+import {
+  handleLs, handleCd, handleCat, handleTree, handleStat, handleFind, handleGrep,
+  handleTouch, handleMkdir, handleRm, handleMove, handleCopy, handleEditor, handleLn,
+} from "./terminal-commands-nav.js";
+import {
+  handleChmod, handleChown, handleChgrp, handleGetfacl, handleSetfacl, handleUmask,
+} from "./terminal-commands-perm.js";
+import {
+  handleId, handleGroups, handleSu, handleExit, handleSudo,
+} from "./terminal-commands-identity.js";
+import {
+  handlePs, handleWho, handleW, handleLast, handleLastlog, handleUname, handleDf, handleDu,
+  handleSockets, handleSystemctl, handleJournalctl, handleDmesg, handleGetcap, handleCrontab,
+} from "./terminal-commands-sysinfo.js";
+
+export { resetTerminalState, getTerminalState };
+
+/** Command history for the ↑/↓ arrow keys — local to this file; nothing
+ *  outside it needs to read or change it. */
 let history = [];
 let historyIndex = -1;
 
-function printLine(body, container) {
-  container.append(el("div", { class: "terminal-line", html: body }));
+/** v2.12 — Investigation Mode listens to what the learner runs. The hook
+ *  receives { cmd, args, user, cwd, paths } AFTER the command ran, where
+ *  user/cwd/paths describe the shell as it was when the line was typed. */
+let commandObserver = null;
+export function setCommandObserver(fn) { commandObserver = typeof fn === "function" ? fn : null; }
+
+/** Set by initTerminal(); lets scenarios re-sync the prompt after they move the shell. */
+let promptRefresher = () => {};
+let terminalBodyNode = null;
+export function refreshTerminalPrompt() { promptRefresher(); }
+/** Print an escaped plain-text notice line in the live terminal (no-op before init). */
+export function terminalNotice(text) {
+  if (terminalBodyNode) { printLine(`<span class="t-amber">${escapeHTML(text)}</span>`, terminalBodyNode); terminalBodyNode.scrollTop = terminalBodyNode.scrollHeight; }
 }
 
-function promptHTML() {
-  return `<span class="t-prompt">${HOSTNAME}</span>:<span class="t-path">${cwd}</span>$`;
+function promptContextHTML() {
+  return `<span class="t-prompt">${me()}</span><span class="t-dim">@${HOST}</span> <span class="t-path">${escapeHTML(cwd)}</span>`;
 }
 
-const HELP_TEXT = `Available commands:
+function promptGlyphHTML() {
+  return `<span class="${me() === "root" ? "t-glyph-root" : "t-glyph-user"}">❯</span>`;
+}
+
+const HELP_TEXT = `Available commands (add --help or -h to any of them for just its own options):
   help                     show this message
   clear                    clear the terminal
   pwd                      print working directory
-  whoami / id / groups     print current user identity
+  whoami / id / groups     print current user identity (id/groups accept a username)
+  su [-] [user]            switch user (default root); "exit" returns
+  sudo [-u user] &lt;cmd&gt;     run one command as root/another user (needs the sudo group)
+  exit                     leave the su shell and go back
+  umask [-S] [mode]        show/set the mask applied to newly created files
   ls, ls -l, ls -la        list directory contents
   cd &lt;dir&gt;                 change directory
   cat &lt;file&gt;               show a file's description
   tree                     show the directory tree from here down
   stat &lt;file&gt;              show detailed permission info for a file
-  find &lt;name&gt;              search the whole filesystem by name
+  find &lt;name&gt; / find [path] -name &lt;pattern&gt;   search by name, path-scoped with -name
   grep &lt;term&gt;              search file descriptions for a keyword
   touch &lt;file&gt;             create an empty file (simulated)
   mkdir &lt;dir&gt;              create a directory (simulated)
   rm &lt;file&gt;                remove a file (simulated)
   mv &lt;src&gt; &lt;dest&gt;          rename/move a file (simulated)
   cp &lt;src&gt; &lt;dest&gt;          copy a file (simulated)
+  ln -s &lt;target&gt; [link]   create a symbolic link
   nano / vim &lt;file&gt;        open the simulated editor notice
   chmod &lt;mode&gt; &lt;file&gt;      change a file's permissions
   chown &lt;user&gt; &lt;file&gt;      change a file's owner
@@ -50,26 +102,61 @@ const HELP_TEXT = `Available commands:
   setfacl -m u:name:rwx &lt;file&gt;   add/update a named user or group ACL entry
   setfacl -x u:name &lt;file&gt;       remove a named ACL entry (g: for a group)
   history                 show command history
+  Tab                     complete a command or path (Tab twice lists the options)
+System investigation (read-only; nothing here executes real commands):
+  ps / ps aux              running processes (plain ps: just your own session)
+  who / w                  who is logged in, and what they're doing
+  last [-n N] / lastlog    login history / each account's most recent login
+  uname -a                 kernel, hostname and OS info
+  df -h / du -sh &lt;dir&gt;     disk usage
+  ss -tulpn / netstat -tulpn   listening sockets (process shown only if it's yours, or as root)
+  systemctl status &lt;svc&gt; / list-units   service state
+  journalctl [-u unit] [-n N]   system journal — needs root or the 'adm' group
+  dmesg                    kernel ring buffer — root only (kernel.dmesg_restrict)
+  getcap -r /              binaries granted Linux capabilities (SUID's modern alternative)
+  crontab -l [-u user]     a user's scheduled jobs (-u is root-only)
+  sudo -l                  what you're allowed to run as root, and why
+  find [path] -perm -4000  SUID audit (-2000 SGID, -1000 sticky, /6000 either)
 Symlinks (shown as "name -&gt; target" in ls -l/stat) always report mode 0777 —
 that's cosmetic. cat, chmod, chown and chgrp all follow a symlink to act on
 its target, exactly like the real commands do without a -h/-P flag.
+Users you can switch to: root, user, alice, deployer, monitoring, www-data.
+Permissions are enforced: as a non-root user, commands fail with "Permission
+denied" and a hint explaining which permission class applied. Try: su alice,
+then cat /etc/shadow.
 This is a simulation — no real shell commands are executed and nothing here touches a real filesystem.`;
 
-function runCommand(raw, container) {
+export function runCommand(raw, container) {
   const trimmed = raw.trim();
   if (trimmed) { history.push(trimmed); historyIndex = history.length; }
-  printLine(`${promptHTML()} ${escapeHTML(trimmed)}`, container);
+  printLine(`${promptContextHTML()} ${promptGlyphHTML()} ${escapeHTML(trimmed)}`, container);
   if (!trimmed) return;
 
-  const [cmd, ...args] = trimmed.split(/\s+/);
+  const parsed = tokenize(trimmed);
+  if (!parsed.ok) { printLine(`<span class="t-err">${escapeHTML(parsed.error)}</span>`, container); return; }
+  const [cmd, ...args] = parsed.tokens;
+  if (cmd === undefined) return;
+  const before = { user: me(), cwd, paths: args.filter((a) => !a.startsWith("-")).map((a) => resolveArg(a)) };
+  dispatch(cmd, args, container);
+  if (commandObserver) {
+    try { commandObserver({ cmd, args, ...before }); } catch { /* an observer must never break the shell */ }
+  }
+}
 
+export function dispatch(cmd, args, container) {
   const handlers = {
     help: () => printLine(`<span class="t-dim">${HELP_TEXT}</span>`, container),
     clear: () => { container.innerHTML = ""; },
     pwd: () => printLine(cwd, container),
-    whoami: () => printLine("user", container),
-    id: () => printLine("uid=1000(user) gid=1000(user) groups=1000(user),27(sudo)", container),
-    groups: () => printLine("user sudo", container),
+    whoami: () => printLine(me(), container),
+    id: () => handleId(args, container),
+    groups: () => handleGroups(args, container),
+    su: () => handleSu(args, container),
+    sudo: () => handleSudo(args, container),
+    exit: () => handleExit(container),
+    logout: () => handleExit(container),
+    umask: () => handleUmask(args, container),
+    ln: () => handleLn(args, container),
     history: () => printLine(history.map((h, i) => `${i + 1}  ${escapeHTML(h)}`).join("\n") || "(empty)", container),
     ls: () => handleLs(args, container),
     cd: () => handleCd(args, container),
@@ -90,340 +177,80 @@ function runCommand(raw, container) {
     chgrp: () => handleChgrp(args, container),
     getfacl: () => handleGetfacl(args, container),
     setfacl: () => handleSetfacl(args, container),
+    ps: () => handlePs(args, container),
+    who: () => handleWho(container),
+    w: () => handleW(container),
+    last: () => handleLast(args, container),
+    lastlog: () => handleLastlog(container),
+    uname: () => handleUname(args, container),
+    df: () => handleDf(container),
+    du: () => handleDu(args, container),
+    ss: () => handleSockets(container),
+    netstat: () => handleSockets(container),
+    systemctl: () => handleSystemctl(args, container),
+    journalctl: () => handleJournalctl(args, container),
+    dmesg: () => handleDmesg(container),
+    getcap: () => handleGetcap(args, container),
+    crontab: () => handleCrontab(args, container),
   };
 
-  const handler = handlers[cmd];
+  const handler = Object.prototype.hasOwnProperty.call(handlers, cmd) ? handlers[cmd] : null;
+  if (handler && (args.includes("--help") || args.includes("-h"))) { printCommandHelp(cmd, container); return; }
   if (handler) handler();
   else printLine(`<span class="t-err">command not found: ${escapeHTML(cmd)}</span> — type <span class="t-amber">help</span> for available commands`, container);
 }
 
-function escapeHTML(str) {
-  return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
+export const COMMAND_NAMES = [
+  "help", "clear", "pwd", "whoami", "id", "groups", "su", "sudo", "exit", "logout", "umask", "ln", "history",
+  "ls", "cd", "cat", "tree", "stat", "find", "grep", "touch", "mkdir", "rm", "mv", "cp", "nano", "vim",
+  "chmod", "chown", "chgrp", "getfacl", "setfacl", "ps", "who", "w", "last", "lastlog", "uname", "df", "du",
+  "ss", "netstat", "systemctl", "journalctl", "dmesg", "getcap", "crontab",
+];
 
-function resolveArg(arg) {
-  return resolvePath(cwd, arg);
-}
-
-function handleLs(args, container) {
-  const flags = args.filter((a) => a.startsWith("-")).join("");
-  const target = args.find((a) => !a.startsWith("-"));
-  const path = target ? resolveArg(target) : cwd;
+/** Directory listing for Tab completion — only what the current user could actually `ls`. */
+function listDirForCompletion(dirPart) {
+  const path = dirPart ? resolveArg(dirPart) : cwd;
   const node = findNode(FS_TREE, path);
-  if (!node || !node.isDir) { printLine(`<span class="t-err">ls: cannot access '${escapeHTML(target || ".")}': not a directory</span>`, container); return; }
-  const children = node.children || [];
-  if (!children.length) { printLine('<span class="t-dim">(empty)</span>', container); return; }
-
-  const showAll = flags.includes("a");
-  const visible = showAll ? children : children.filter((c) => !c.name.startsWith("."));
-
-  if (flags.includes("l")) {
-    const rows = visible.map((c) => {
-      const state = octalToState(c.octal, c.isDir);
-      const sym = (c.isSymlink ? "lrwxrwxrwx" : stateToSymbolic(state)) + (c.acl && c.acl.length ? "+" : "");
-      const name = c.isDir
-        ? `<span class="t-path">${c.name}/</span>`
-        : c.isSymlink
-        ? `<span class="t-path">${c.name}</span> -&gt; ${escapeHTML(c.target)}`
-        : c.name;
-      return `${sym}  ${String(c.owner).padEnd(9)} ${String(c.group).padEnd(9)} ${name}`;
-    });
-    printLine(rows.join("\n"), container);
-  } else {
-    printLine(visible.map((c) => (c.isDir ? `<span class="t-path">${c.name}/</span>` : c.isSymlink ? `<span class="t-path">${c.name}</span>` : c.name)).join("   "), container);
-  }
+  if (!node || !node.isDir) return [];
+  if (!checkPathAccess(path, me(), "r").ok) return [];
+  return (node.children || []).map((c) => ({ name: c.name, isDir: !!c.isDir }));
 }
 
-function handleCd(args, container) {
-  const target = args[0];
-  const newPath = resolveArg(target);
-  const node = findNode(FS_TREE, newPath);
-  if (!node || !node.isDir) {
-    printLine(`<span class="t-err">cd: no such directory: ${escapeHTML(target || "~")}</span>`, container);
-    return;
-  }
-  cwd = newPath;
-}
-
-function handleCat(args, container) {
-  if (!args[0]) { printLine('<span class="t-err">cat: missing filename</span>', container); return; }
-  const node = findNode(FS_TREE, resolveArg(args[0]));
-  if (!node || node.isDir) { printLine(`<span class="t-err">cat: ${escapeHTML(args[0])}: no such file</span>`, container); return; }
-  if (node.isSymlink) {
-    const target = resolveSymlink(node);
-    if (!target) { printLine(`<span class="t-err">cat: ${escapeHTML(args[0])}: broken symbolic link to '${escapeHTML(node.target)}'</span>`, container); return; }
-    printLine(`<span class="t-dim">[follows ${escapeHTML(node.path)} -&gt; ${escapeHTML(target.path)}]</span>\n${target.note || `<span class="t-dim">(no description available for this simulated file)</span>`}`, container);
-    return;
-  }
-  printLine(node.note || `<span class="t-dim">(no description available for this simulated file)</span>`, container);
-}
-
-function handleTree(args, container) {
-  const start = args[0] ? findNode(FS_TREE, resolveArg(args[0])) : findNode(FS_TREE, cwd);
-  if (!start || !start.isDir) { printLine('<span class="t-err">tree: not a directory</span>', container); return; }
-  const lines = [start.path];
-  const walk = (node, prefix) => {
-    const kids = node.children || [];
-    kids.forEach((kid, i) => {
-      const last = i === kids.length - 1;
-      const label = kid.isDir
-        ? `<span class="t-path">${kid.name}/</span>`
-        : kid.isSymlink
-        ? `<span class="t-path">${kid.name}</span> -&gt; ${escapeHTML(kid.target)}`
-        : kid.name;
-      lines.push(`${prefix}${last ? "└── " : "├── "}${label}`);
-      if (kid.isDir) walk(kid, prefix + (last ? "    " : "│   "));
-    });
-  };
-  walk(start, "");
-  printLine(lines.join("\n"), container);
-}
-
-function handleStat(args, container) {
-  if (!args[0]) { printLine('<span class="t-err">stat: missing filename</span>', container); return; }
-  const path = resolveArg(args[0]);
-  const node = findNode(FS_TREE, path);
-  if (!node) { printLine(`<span class="t-err">stat: cannot stat '${escapeHTML(args[0])}': no such file or directory</span>`, container); return; }
-  const state = octalToState(node.octal, node.isDir);
-  const sym = (node.isSymlink ? "lrwxrwxrwx" : stateToSymbolic(state)) + (node.acl && node.acl.length ? "+" : "");
-  printLine([
-    `  File: ${node.path}${node.isDir ? "/" : ""}${node.isSymlink ? ` -&gt; ${escapeHTML(node.target)}` : ""}`,
-    `  Type: ${node.isSymlink ? "symbolic link" : node.isDir ? "directory" : "regular file"}`,
-    `Access: (${node.isSymlink ? "0777" : node.octal.padStart(4, "0")}/${sym})  Uid: (${node.owner})   Gid: (${node.group})`,
-    node.isSymlink ? '<span class="t-dim">A symlink\'s own mode is always 0777 and is never checked by the kernel — access is enforced entirely by the permissions on the target above.</span>' : "",
-    node.acl && node.acl.length ? '<span class="t-dim">The trailing + means this file has extended ACL entries beyond owner/group/others — run getfacl to see them.</span>' : "",
-    node.sensitive ? '<span class="t-amber">Flagged sensitive — check the Security Analyzer in the Simulator for details.</span>' : "",
-  ].filter(Boolean).join("\n"), container);
-}
-
-function handleFind(args, container) {
-  const term = args[0];
-  if (!term) { printLine('<span class="t-err">usage: find &lt;name&gt;</span>', container); return; }
-  const matches = flattenTree().filter((n) => n.name.toLowerCase().includes(term.toLowerCase()));
-  if (!matches.length) { printLine(`<span class="t-dim">find: no files matching '${escapeHTML(term)}'</span>`, container); return; }
-  printLine(matches.map((n) => n.path + (n.isDir ? "/" : "")).join("\n"), container);
-}
-
-function handleGrep(args, container) {
-  const term = args[0];
-  if (!term) { printLine('<span class="t-err">usage: grep &lt;keyword&gt;</span>', container); return; }
-  const matches = flattenTree().filter((n) => (n.note || "").toLowerCase().includes(term.toLowerCase()));
-  if (!matches.length) { printLine(`<span class="t-dim">grep: no descriptions mention '${escapeHTML(term)}'</span>`, container); return; }
-  printLine(matches.map((n) => `<span class="t-path">${n.path}</span>: ${n.note}`).join("\n"), container);
-}
-
-function withTargetNode(args, container, cmdName, fn) {
-  if (!args[0]) { printLine(`<span class="t-err">${cmdName}: missing operand</span>`, container); return; }
-  const path = resolveArg(args[0]);
-  const node = findNode(FS_TREE, path);
-  if (!node) { printLine(`<span class="t-err">${cmdName}: cannot access '${escapeHTML(args[0])}': no such file (simulated)</span>`, container); return; }
-  fn(node, path);
-}
-
-function handleTouch(args, container) {
-  if (!args[0]) { printLine('<span class="t-err">touch: missing filename</span>', container); return; }
-  const path = resolveArg(args[0]);
-  if (findNode(FS_TREE, path)) { printLine(`<span class="t-dim">touch: '${escapeHTML(args[0])}' already exists (timestamp simulated as updated)</span>`, container); return; }
-  const parent = findNode(FS_TREE, parentPath(path));
-  if (!parent || !parent.isDir) { printLine(`<span class="t-err">touch: cannot create '${escapeHTML(args[0])}': no such directory</span>`, container); return; }
-  const name = path.split("/").pop();
-  parent.children = parent.children || [];
-  parent.children.push({ name, path, isDir: false, octal: "644", owner: "user", group: "user", sensitive: false, note: "A new empty file created in this simulation." });
-  printLine(`<span class="t-amber">created ${path}</span>`, container);
-}
-
-function handleMkdir(args, container) {
-  if (!args[0]) { printLine('<span class="t-err">mkdir: missing directory name</span>', container); return; }
-  const path = resolveArg(args[0]);
-  if (findNode(FS_TREE, path)) { printLine(`<span class="t-err">mkdir: cannot create directory '${escapeHTML(args[0])}': already exists</span>`, container); return; }
-  const parent = findNode(FS_TREE, parentPath(path));
-  if (!parent || !parent.isDir) { printLine(`<span class="t-err">mkdir: cannot create directory '${escapeHTML(args[0])}': no such parent directory</span>`, container); return; }
-  const name = path.split("/").pop();
-  parent.children = parent.children || [];
-  parent.children.push({ name, path, isDir: true, octal: "755", owner: "user", group: "user", sensitive: false, note: "", children: [] });
-  printLine(`<span class="t-amber">directory created: ${path}</span>`, container);
-}
-
-function handleRm(args, container) {
-  withTargetNode(args, container, "rm", (node, path) => {
-    const parent = findNode(FS_TREE, parentPath(path));
-    parent.children = parent.children.filter((c) => c !== node);
-    printLine(`<span class="t-amber">removed ${path}</span>`, container);
-  });
-}
-
-function handleMove(args, container) {
-  if (args.length < 2) { printLine('<span class="t-err">usage: mv &lt;source&gt; &lt;destination&gt;</span>', container); return; }
-  withTargetNode([args[0]], container, "mv", (node, srcPath) => {
-    const destPath = resolveArg(args[1]);
-    const oldParent = findNode(FS_TREE, parentPath(srcPath));
-    const destParent = findNode(FS_TREE, destPath)?.isDir ? findNode(FS_TREE, destPath) : findNode(FS_TREE, parentPath(destPath));
-    if (!destParent || !destParent.isDir) { printLine('<span class="t-err">mv: destination directory does not exist</span>', container); return; }
-    oldParent.children = oldParent.children.filter((c) => c !== node);
-    const newName = findNode(FS_TREE, destPath)?.isDir ? node.name : destPath.split("/").pop();
-    node.name = newName;
-    destParent.children = destParent.children || [];
-    destParent.children.push(node);
-    reassignSubtreePaths(node, destParent.path);
-    printLine(`<span class="t-amber">moved to ${node.path}</span>`, container);
-  });
-}
-
-function handleCopy(args, container) {
-  if (args.length < 2) { printLine('<span class="t-err">usage: cp &lt;source&gt; &lt;destination&gt;</span>', container); return; }
-  withTargetNode([args[0]], container, "cp", (node) => {
-    const destPath = resolveArg(args[1]);
-    const destParent = findNode(FS_TREE, destPath)?.isDir ? findNode(FS_TREE, destPath) : findNode(FS_TREE, parentPath(destPath));
-    if (!destParent || !destParent.isDir) { printLine('<span class="t-err">cp: destination directory does not exist</span>', container); return; }
-    const newName = findNode(FS_TREE, destPath)?.isDir ? node.name : destPath.split("/").pop();
-    const clone = JSON.parse(JSON.stringify(node));
-    clone.name = newName;
-    destParent.children = destParent.children || [];
-    destParent.children.push(clone);
-    reassignSubtreePaths(clone, destParent.path);
-    printLine(`<span class="t-amber">copied to ${clone.path}</span>`, container);
-  });
-}
-
-function reassignSubtreePaths(node, parentPathValue) {
-  node.path = parentPathValue === "/" ? "/" + node.name : parentPathValue + "/" + node.name;
-  if (node.children) node.children.forEach((c) => reassignSubtreePaths(c, node.path));
-}
-
-function handleEditor(name, args, container) {
-  if (!args[0]) { printLine(`<span class="t-err">${name}: missing filename</span>`, container); return; }
-  const node = findNode(FS_TREE, resolveArg(args[0]));
-  if (!node) { printLine(`<span class="t-err">${name}: '${escapeHTML(args[0])}' does not exist</span>`, container); return; }
-  printLine(`<span class="t-dim">[simulated] ${name} would open '${node.path}' here — this lab doesn't include a real text editor, since editing file contents isn't the point. Use chmod/chown/chgrp on it instead.</span>`, container);
-}
-
-function handleChmod(args, container) {
-  if (args.length < 2 || !/^[0-7]{3,4}$/.test(args[0])) {
-    printLine('<span class="t-err">usage: chmod &lt;mode&gt; &lt;file&gt;   e.g. chmod 755 script.sh</span>', container);
-    return;
-  }
-  const [mode, filename] = args;
-  withTargetNode([filename], container, "chmod", (node) => {
-    const { target, followedSymlink, dangling } = resolveWriteTarget(node);
-    if (dangling) { printLine(`<span class="t-err">chmod: cannot operate on dangling symlink '${escapeHTML(filename)}'</span>`, container); return; }
-    target.octal = mode;
-    const state = octalToState(mode, target.isDir);
-    if (followedSymlink) {
-      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chmod follows it and changes its target instead.</span>\n<span class="t-amber">mode of '${escapeHTML(target.path)}' changed to ${mode} (${stateToSymbolic(state)})</span>`, container);
-      return;
-    }
-    if (target.acl && target.acl.length) recalcAclMask(target);
-    printLine(`<span class="t-amber">mode of '${escapeHTML(filename)}' changed to ${mode} (${stateToSymbolic(state)}${target.acl && target.acl.length ? "+" : ""})</span>${target.acl && target.acl.length ? `\n<span class="t-dim">This file has ACL entries, so its mask was recalculated to ${target.aclMask} — check getfacl, the group digit alone no longer tells the whole story.</span>` : ""}`, container);
-  });
-}
-
-function handleChown(args, container) {
-  if (args.length < 2) { printLine('<span class="t-err">usage: chown &lt;user&gt; &lt;file&gt;</span>', container); return; }
-  const [owner, filename] = args;
-  withTargetNode([filename], container, "chown", (node) => {
-    const { target, followedSymlink, dangling } = resolveWriteTarget(node);
-    if (dangling) { printLine(`<span class="t-err">chown: cannot operate on dangling symlink '${escapeHTML(filename)}'</span>`, container); return; }
-    target.owner = owner;
-    if (followedSymlink) {
-      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chown follows it by default (use lchown to target the link itself, not supported here).</span>\n<span class="t-amber">owner of '${escapeHTML(target.path)}' changed to ${escapeHTML(owner)}</span>`, container);
-      return;
-    }
-    printLine(`<span class="t-amber">owner of '${escapeHTML(filename)}' changed to ${escapeHTML(owner)}</span>`, container);
-  });
-}
-
-function handleChgrp(args, container) {
-  if (args.length < 2) { printLine('<span class="t-err">usage: chgrp &lt;group&gt; &lt;file&gt;</span>', container); return; }
-  const [group, filename] = args;
-  withTargetNode([filename], container, "chgrp", (node) => {
-    const { target, followedSymlink, dangling } = resolveWriteTarget(node);
-    if (dangling) { printLine(`<span class="t-err">chgrp: cannot operate on dangling symlink '${escapeHTML(filename)}'</span>`, container); return; }
-    target.group = group;
-    if (followedSymlink) {
-      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chgrp follows it by default, same as chown.</span>\n<span class="t-amber">group of '${escapeHTML(target.path)}' changed to ${escapeHTML(group)}</span>`, container);
-      return;
-    }
-    printLine(`<span class="t-amber">group of '${escapeHTML(filename)}' changed to ${escapeHTML(group)}</span>`, container);
-  });
-}
-
-/* ---------------------------- ACL: getfacl / setfacl (v2.3) ---------------------------- */
-/* A real extended ACL always keeps a "mask" entry that caps what every named
-   user/group entry can actually do, recalculated automatically on every
-   setfacl -m/-x unless you pass -n (not supported here). getfacl shows both
-   the entry's own bits and a "#effective:" comment whenever the mask trims
-   it — that distinction is the whole point of teaching this command. The
-   actual mask/effective math is imported from engine/acl.js so it's
-   independently unit-tested. */
-
-function handleGetfacl(args, container) {
-  withTargetNode(args, container, "getfacl", (node, path) => {
-    const state = octalToState(node.octal, node.isDir);
-    const acl = node.acl || [];
-    const hasExt = acl.length > 0;
-    const mask = hasExt ? (node.aclMask || triadToSymbol(state.group)) : null;
-    const withEffective = (perms) => (mask && permsIntersect(perms, mask) !== perms ? `${perms}\t#effective:${permsIntersect(perms, mask)}` : perms);
-
-    const lines = [
-      `# file: ${path.replace(/^\//, "")}`,
-      `# owner: ${node.owner}`,
-      `# group: ${node.group}`,
-      `user::${triadToSymbol(state.owner)}`,
-    ];
-    acl.filter((e) => e.type === "user").forEach((e) => lines.push(`user:${e.id}:${withEffective(e.perms)}`));
-    lines.push(`group::${withEffective(triadToSymbol(state.group))}`);
-    acl.filter((e) => e.type === "group").forEach((e) => lines.push(`group:${e.id}:${withEffective(e.perms)}`));
-    if (hasExt) lines.push(`mask::${mask}`);
-    lines.push(`other::${triadToSymbol(state.others)}`);
-    printLine(`<span class="t-dim">${lines.join("\n")}</span>${node.isSymlink ? '\n<span class="t-dim">(a symlink has no ACL of its own — this reflects the link\'s cosmetic 777, not its target)</span>' : ""}`, container);
-  });
-}
-
-function handleSetfacl(args, container) {
-  const [flag, spec, filename] = args;
-  if ((flag !== "-m" && flag !== "-x") || !spec || !filename) {
-    printLine('<span class="t-err">usage: setfacl -m u:name:rwx &lt;file&gt;   (add/update)\nsetfacl -x u:name &lt;file&gt;       (remove)\nqualifier can be u/user or g/group</span>', container);
-    return;
-  }
-  withTargetNode([filename], container, "setfacl", (node) => {
-    if (node.isSymlink) { printLine(`<span class="t-err">setfacl: '${escapeHTML(filename)}' is a symlink — setfacl always operates on the real file, apply it to the target</span>`, container); return; }
-    const parts = spec.split(":");
-    const kindRaw = parts[0];
-    const type = kindRaw === "u" || kindRaw === "user" ? "user" : kindRaw === "g" || kindRaw === "group" ? "group" : null;
-    const id = parts[1];
-    if (!type || !id) { printLine(`<span class="t-err">setfacl: bad qualifier '${escapeHTML(spec)}' — use u:name:perms or g:name:perms</span>`, container); return; }
-    node.acl = node.acl || [];
-
-    if (flag === "-m") {
-      const perms = (parts[2] || "").toLowerCase();
-      if (!/^[r-][w-][x-]$/.test(perms)) { printLine(`<span class="t-err">setfacl: invalid permission string '${escapeHTML(parts[2] || "")}' — expected 3 chars like rwx, rw-, r--</span>`, container); return; }
-      const existing = node.acl.find((e) => e.type === type && e.id === id);
-      if (existing) existing.perms = perms; else node.acl.push({ type, id, perms });
-      recalcAclMask(node);
-      printLine(`<span class="t-amber">${type}:${escapeHTML(id)}:${perms} applied to '${escapeHTML(filename)}'</span>\n<span class="t-dim">mask recalculated to ${node.aclMask} — every named entry's real access is capped by this mask, not by the number you just set. Run getfacl to see the effective bits.</span>`, container);
-    } else {
-      const before = node.acl.length;
-      node.acl = node.acl.filter((e) => !(e.type === type && e.id === id));
-      if (node.acl.length === before) { printLine(`<span class="t-dim">setfacl: no matching entry ${type}:${escapeHTML(id)} on '${escapeHTML(filename)}'</span>`, container); return; }
-      recalcAclMask(node);
-      printLine(`<span class="t-amber">removed ${type}:${escapeHTML(id)} from '${escapeHTML(filename)}'</span>`, container);
-    }
-  });
+/** Tab completion for the current shell state (exported for tests). */
+export function completeInput(line) {
+  return completeLine(line, { commands: COMMAND_NAMES, listDir: listDirForCompletion });
 }
 
 export function initTerminal() {
   const body = qs("#terminal-body");
   const input = qs("#terminal-input");
-  const promptPrefix = qs("#terminal-prompt-prefix");
+  const promptInfo = qs("#terminal-prompt-info");
+  const promptGlyph = qs("#terminal-prompt-glyph");
+  const tlTitle = qs("#terminal-tl-title");
+  const tlStatus = qs("#terminal-tl-status");
   if (!body || !input) return;
 
   body.innerHTML = "";
-  printLine('<span class="t-dim">Linux Permission Lab — simulated terminal. Type "help" to see available commands.</span>', body);
+printLine("<span class=\"t-arch\">      /\\       </span><span class=\"t-prompt\">user@permission-lab</span>\n<span class=\"t-arch\">     /  \\      </span><span class=\"t-dim\">-------------------</span>\n<span class=\"t-arch\">    /    \\     </span><span class=\"t-dim\">OS: Arch Linux</span>\n<span class=\"t-arch\">   /  __  \\    </span><span class=\"t-dim\">Kernel: 6.8.0-45</span>\n<span class=\"t-arch\">  / |    | \\   </span><span class=\"t-dim\">Shell: bash</span>\n<span class=\"t-arch\"> /__|    |__\\  </span><span class=\"t-dim\">Packages: 47</span>\n\n<span class=\"t-dim\">Type \"help\" to see all 47 commands. Nothing here touches a real system.</span>", body);
+
+  /** Titlebar mirrors who you actually are right now — the same signal real
+   *  terminal tabs give you, but here it doubles as a privilege tell: green
+   *  at rest, red the moment you ARE root — the exact boundary this lab is
+   *  about. (Capability to sudo isn't shown here; plenty of accounts have
+   *  it and sit calmly at rest — only actually BEING root changes the dot.) */
+  const updateTitlebar = () => {
+    if (tlTitle) tlTitle.textContent = `${me()}@${HOST}`;
+    if (tlStatus) tlStatus.className = `tl-status-dot ${me() === "root" ? "is-root" : "is-user"}`;
+  };
 
   const updatePromptPrefix = () => {
-    if (promptPrefix) promptPrefix.innerHTML = `${promptHTML()}`;
+    if (promptInfo) promptInfo.innerHTML = promptContextHTML();
+    if (promptGlyph) promptGlyph.innerHTML = promptGlyphHTML();
+    updateTitlebar();
   };
   updatePromptPrefix();
+  promptRefresher = updatePromptPrefix;
+  terminalBodyNode = body;
 
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -431,6 +258,15 @@ export function initTerminal() {
       input.value = "";
       updatePromptPrefix();
       body.scrollTop = body.scrollHeight;
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      const { line, candidates } = completeInput(input.value);
+      if (line === input.value && candidates.length > 1) {
+        printLine(`${promptContextHTML()} ${promptGlyphHTML()} ${escapeHTML(input.value)}`, body);
+        printLine(`<span class="t-dim">${candidates.map(escapeHTML).join("   ")}</span>`, body);
+        body.scrollTop = body.scrollHeight;
+      }
+      input.value = line;
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (historyIndex > 0) { historyIndex -= 1; input.value = history[historyIndex] || ""; }

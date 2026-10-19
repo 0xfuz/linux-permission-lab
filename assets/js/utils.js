@@ -25,6 +25,14 @@ export function el(tag, attrs = {}, children = []) {
   return node;
 }
 
+/**
+ * Show a one-line feedback message as plain text (never parsed as HTML).
+ * tone: "crit" | "safe" | "warn" — styled by .feedback-* in components.css.
+ */
+export function setFeedback(node, text, tone) {
+  node.replaceChildren(el("span", { class: `feedback-${tone}` }, [String(text)]));
+}
+
 /* ---------------------------- Toasts ---------------------------- */
 
 let toastRegion;

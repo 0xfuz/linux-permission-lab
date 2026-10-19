@@ -22,7 +22,8 @@ function f(name, octal, opts = {}) {
 }
 function d(name, octal, children, opts = {}) {
   return { name, isDir: true, octal, owner: opts.owner || "root", group: opts.group || "root",
-    sensitive: !!opts.sensitive, note: opts.note || "", children };
+    sensitive: !!opts.sensitive, note: opts.note || "", children,
+    ...(opts.acl ? { acl: opts.acl } : {}) };
 }
 /** Symlinks always report as 777 (lrwxrwxrwx) — the OS ignores a link's own
  *  bits and enforces whatever the *target* allows. `target` is stored as
@@ -40,11 +41,14 @@ export const FS_TREE = d("", "755", [
     f("shadow", "640", { group: "shadow", sensitive: true, note: "Holds password hashes. Should never be world-readable." }),
     f("gshadow", "640", { group: "shadow", sensitive: true, note: "Group password hashes — same sensitivity as shadow." }),
     f("group", "644", { note: "Maps group names to GIDs and members — safe to be world-readable." }),
-    f("sudoers", "440", { sensitive: true, note: "Defines who can run commands as root. Must never be group- or world-writable." }),
+    f("sudoers", "440", { sensitive: true, note: "Defines who can run commands as root. Must never be group- or world-writable (440 is correct: root can read/edit, nobody else can even read it).\n\nDefaults        env_reset\nDefaults        secure_path=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"\n\nroot    ALL=(ALL:ALL) ALL\n%sudo   ALL=(ALL:ALL) ALL\n\n#includedir /etc/sudoers.d\n\nThis is the whole rule set in this lab: root, and anyone in the 'sudo' group, may run anything as anyone. Run 'sudo -l' as different users to see this rule evaluated per-account." }),
     d("sudoers.d", "750", [
-      f("90-custom", "440", { sensitive: true, note: "Drop-in sudo rule file — same strict permissions as the main sudoers file." }),
+      f("90-custom", "440", { sensitive: true, note: "Drop-in sudo rule file \u2014 same strict permissions as the main sudoers file (440). This one is currently just a placeholder:\n\n# Site-specific sudo rules go here.\n# (empty \u2014 no extra rules beyond /etc/sudoers today)\n\nWorth re-checking after any change: a single misplaced NOPASSWD line in a file like this is one of the most common real-world routes to full root." }),
     ]),
-    f("crontab", "600", { note: "System-wide cron table — owner-only, since it can run arbitrary scheduled commands." }),
+    d("cron.d", "755", [
+      f("backup-job", "644", { sensitive: true, note: "A drop-in cron job \u2014 world-readable like every file under /etc/cron.d, which is normal. What is NOT normal: the command embeds a plaintext password.\n\n30 3 * * *   root   /opt/app/bin/nightly_backup.sh --db app_db --user backup_svc --password Spring2024!\n\nOn Linux, a process's full command line (including arguments) is visible to every local user \u2014 via this file, or via `ps aux` while the job is running (pid 2140), or by reading /proc/<pid>/cmdline directly. Secrets belong in a 600 file the script reads, or an environment file cron can source \u2014 never on the command line. See also: ps aux." }),
+    ]),
+    f("crontab", "644", { note: "System-wide cron table. Unlike a per-user crontab (/var/spool/cron/crontabs/<user>, mode 600), /etc/crontab is world-READABLE by default \u2014 security here relies on only root being able to WRITE it, not on hiding it. The 6th column (missing from per-user crontabs) names who the job runs as:\n\n# m h dom mon dow user  command\n17 *    * * *   root    cd / && run-parts --report /etc/cron.hourly\n25 6    * * *   root    test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.daily )\n47 6    * * 7   root    test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.weekly )\n52 6    1 * *   root    test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.monthly )\n\nSee also /etc/cron.d/ for one-off drop-in jobs \u2014 try: cat /etc/cron.d/backup-job" }),
     f("fstab", "644", { note: "Filesystem mount table — world-readable is normal and expected." }),
     f("hosts", "644", { note: "Static hostname resolution — world-readable." }),
     f("hostname", "644", { note: "This machine's hostname." }),
@@ -90,7 +94,8 @@ export const FS_TREE = d("", "755", [
     d("spool", "755", [
       d("cron", "755", [
         d("crontabs", "1730", [
-          f("user", "600", { owner: "user", group: "crontab", note: "A user's personal cron schedule." }),
+          f("user", "600", { owner: "user", group: "crontab", note: "*/15 * * * *  /home/user/scripts/sync_notes.sh\n\nA user's personal cron schedule \u2014 no 'user' column here (unlike /etc/crontab): a per-user crontab always runs as its owner." }),
+          f("alice", "600", { owner: "alice", group: "crontab", note: "0 2 * * *  /home/alice/project/nightly_build.sh\n\nAlice's personal cron schedule." }),
         ], { group: "crontab", note: "Per-user crontab storage — sticky, group-writable by the crontab group only." }),
       ]),
     ]),
@@ -101,11 +106,15 @@ export const FS_TREE = d("", "755", [
       f("app.jar", "644", { note: "Application artifact — doesn't need to be executable directly." }),
       d("config", "750", [
         f("app.yml", "640", { sensitive: true, acl: [{ type: "user", id: "monitoring", perms: "r--" }],
-          note: "Application configuration including API keys — owner/group only by the base bits, plus one extra grant: run 'getfacl' on this file to see it. A monitoring service account was given read access via a named ACL entry instead of being added to the owning group, which would have been far more permissive." }),
-      ]),
+          note: "Application configuration including API keys — owner/group only by the base bits, plus one extra grant: run 'getfacl' on this file to see it. A monitoring service account was given read access via a named ACL entry instead of being added to the owning group, which would have been far more permissive. The same account also has a --x ACL entry on this file's DIRECTORY (/opt/app/config): a file ACL alone isn't enough, because reaching a file needs search (x) on every directory above it. Try it: su monitoring, then cat /opt/app/config/app.yml." }),
+      ], { acl: [{ type: "user", id: "monitoring", perms: "--x" }],
+        note: "Config directory — 750 root:root, plus a named ACL entry letting the monitoring account search (x) into it without joining the group." }),
       d("bin", "755", [
         f("start.sh", "750", { note: "Startup script — owner and group can run it, others can't." }),
       ]),
+      d("shared", "2775", [
+        f("RELEASE_NOTES.md", "664", { owner: "deployer", group: "deployer", note: "A file dropped by whoever last ran a deploy \u2014 owned by them, but note the GROUP is 'deployer' even if their own primary group isn't, because of the SGID bit above." }),
+      ], { owner: "root", group: "deployer", note: "A shared team directory \u2014 mode 2775: the leading 2 is the SGID bit on a DIRECTORY, which means every new file or subdirectory created inside automatically inherits the group 'deployer', no matter who creates it or what their own primary group is. Compare with a plain 0775 directory, where a new file gets the CREATOR's primary group instead. This is the standard way to make a shared drop folder behave consistently for a whole team." }),
     ]),
   ]),
 
@@ -184,7 +193,7 @@ export const FS_TREE = d("", "755", [
 
 /* Assign every node's path from its position in the tree, so the data above
    never needs to repeat a full path by hand. */
-function assignPaths(node, parentPath) {
+export function assignPaths(node, parentPath) {
   node.path = parentPath === "" ? "/" + node.name : parentPath + "/" + node.name;
   if (node.name === "") node.path = "/";
   if (node.children) node.children.forEach((c) => assignPaths(c, node.path === "/" ? "" : node.path));

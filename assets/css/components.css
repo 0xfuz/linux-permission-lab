@@ -342,7 +342,6 @@
   line-height: 1.6;
 }
 .author-credit strong { color: var(--text-secondary); }
-.author-credit .heart, .footer-author-credit .heart, .hero-author-badge .heart { color: var(--crit-500); }
 
 .author-social {
   display: flex;
@@ -436,3 +435,10 @@
 .quiz-option.correct .quiz-option-letter { background: var(--safe-500); color: #0a0c0d; border-color: var(--safe-500); }
 .quiz-option.incorrect { border-color: var(--crit-500); background: var(--crit-glow); }
 .quiz-option.incorrect .quiz-option-letter { background: var(--crit-500); color: #0a0c0d; border-color: var(--crit-500); }
+
+/* Feedback lines (utils.setFeedback) and challenge hints — classes instead of inline styles */
+.feedback-crit { color: var(--crit-500); }
+.feedback-safe { color: var(--safe-500); }
+.feedback-warn { color: var(--warn-500); }
+.readout-hint { margin-top: 8px; }
+.readout-hint-text { color: var(--text-secondary); font-size: 0.85rem; }

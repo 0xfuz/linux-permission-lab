@@ -2,20 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<script>
-  // Set lang/dir synchronously before first paint, so a stored Arabic
-  // preference doesn't flash as LTR English for a frame. i18n.js re-applies
-  // this properly once it loads; this is just the pre-paint fast path.
-  try {
-    var raw = localStorage.getItem("lpl_state_v1");
-    var storedLocale = raw ? JSON.parse(raw).locale : null;
-    if (storedLocale === "ar") {
-      document.documentElement.setAttribute("lang", "ar");
-      document.documentElement.setAttribute("dir", "rtl");
-    }
-  } catch (e) { /* localStorage unavailable — default LTR English is fine */ }
-</script>
+<script src="assets/js/boot-lang.js"></script>
 <title>Linux Permission Lab — Interactive Permissions Playground</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><rect width=%2224%22 height=%2224%22 rx=%225%22 fill=%22%23ffb000%22/><text x=%2212%22 y=%2217%22 font-family=%22monospace%22 font-size=%2213%22 font-weight=%22bold%22 text-anchor=%22middle%22 fill=%22%2316110a%22>$_</text></svg>">
 <meta name="description" content="Learn Linux file permissions visually: an interactive simulator, terminal, 21 learning topics, 11 guided labs, 88 challenges, a 113-question quiz, and a security analyzer — all in your browser." />
@@ -29,6 +18,7 @@
 <link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="assets/css/cards.css">
 <link rel="stylesheet" href="assets/css/terminal.css">
+<link rel="stylesheet" href="assets/css/scenarios.css">
 <link rel="stylesheet" href="assets/css/animations.css">
 <link rel="stylesheet" href="assets/css/responsive.css">
 <link rel="stylesheet" href="assets/css/rtl.css">
@@ -121,7 +111,7 @@
         <span aria-hidden="true">◐</span>
       </button>
       <div class="author-credit">
-        Created with <span class="heart" aria-hidden="true">❤</span> by <strong>0x0MAr</strong>
+        Created by <strong>0x0MAr</strong>
         <div class="author-social">
           <a href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on GitHub" data-tooltip="GitHub">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.11 2.91.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.05 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.79-4.57 5.04.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
@@ -172,17 +162,17 @@
               <div class="hero-stat"><strong>88</strong><span data-i18n="nav.challenges">Challenges</span></div>
               <div class="hero-stat"><strong>113</strong><span data-i18n="hero.stats.quiz">Quiz questions</span></div>
             </div>
-            <p class="hero-author-badge"><span data-i18n="hero.authorBadge">Created with</span> <span class="heart" aria-hidden="true"></span> <a href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer">0x0MAr</a></p>
+            <p class="hero-author-badge"><span data-i18n="hero.authorBadge">Created by</span> <a href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer">0x0MAr</a></p>
             <div class="hero-terminal-preview" aria-hidden="true">
               <div class="terminal-window">
                 <div class="terminal-titlebar">
-                  <span class="tl-dot red"></span><span class="tl-dot yellow"></span><span class="tl-dot green"></span>
+                  <svg class="tl-arch-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21 21 L15.5 21 L12 13.5 L8.5 21 L3 21 Z"/><path d="M12 8.2 L14.6 14.5 L9.4 14.5 Z" opacity=".55"/></svg>
                   <span class="tl-title">learner@permission-lab</span>
                 </div>
                 <div class="terminal-body" style="height:auto;padding:20px 20px 24px" dir="ltr">
-                  <div class="terminal-line"><span class="t-prompt">learner@permission-lab</span>:<span class="t-path">~</span>$ ls -l authorized_keys</div>
+                  <div class="terminal-line"><span class="t-prompt">learner</span><span class="t-dim">@permission-lab</span> <span class="t-path">~</span> <span class="t-glyph-user">❯</span> ls -l authorized_keys</div>
                   <div class="terminal-line t-dim">-rw------- 1 user user 412 Jun 3 authorized_keys</div>
-                  <div class="terminal-line"><span class="t-prompt">learner@permission-lab</span>:<span class="t-path">~</span>$ chmod 600 authorized_keys<span class="terminal-cursor"></span></div>
+                  <div class="terminal-line"><span class="t-prompt">learner</span><span class="t-dim">@permission-lab</span> <span class="t-path">~</span> <span class="t-glyph-user">❯</span> chmod 600 authorized_keys<span class="terminal-cursor"></span></div>
                 </div>
               </div>
             </div>
@@ -206,7 +196,7 @@
               <div class="feature-card">
                 <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg></div>
                 <h3 data-i18n="home.feature.fs.title">Fake Filesystem</h3>
-                <p data-i18n="home.feature.fs.desc">59 realistic files plus 2 symlinks across /etc, /var, /opt, /usr, /tmp, /home and /root — click through real-world permission mistakes.</p>
+                <p data-i18n="home.feature.fs.desc">62 realistic files plus 2 symlinks across /etc, /var, /opt, /usr, /tmp, /home and /root — click through real-world permission mistakes.</p>
               </div>
               <div class="feature-card">
                 <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg></div>
@@ -301,7 +291,7 @@
           <div class="site-footer-bottom">
             <p class="footer-note"><span data-i18n="home.footerNote">Linux Permission Lab v2.3 · Educational simulation, no real shell execution</span> · <span id="current-year"></span></p>
             <p class="footer-author-credit">
-              <span data-i18n="hero.authorBadge">Created with</span> <span class="heart" aria-hidden="true"></span> <strong>0x0MAr</strong>
+              <span data-i18n="hero.authorBadge">Created by</span> <strong>0x0MAr</strong>
               <span class="author-social">
                 <a href="https://github.com/0xfuz" target="_blank" rel="noopener noreferrer" aria-label="0x0MAr on GitHub" data-tooltip="GitHub">
                   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.11 2.91.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.05 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.79-4.57 5.04.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
@@ -431,13 +421,15 @@
 
         <div class="terminal-window" dir="ltr">
           <div class="terminal-titlebar">
-            <span class="tl-dot red"></span><span class="tl-dot yellow"></span><span class="tl-dot green"></span>
-            <span class="tl-title">learner@permission-lab — simulated shell</span>
+            <svg class="tl-arch-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21 21 L15.5 21 L12 13.5 L8.5 21 L3 21 Z"/><path d="M12 8.2 L14.6 14.5 L9.4 14.5 Z" opacity=".55"/></svg>
+            <span class="tl-session"><span class="tl-status-dot" id="terminal-tl-status"></span><span class="tl-title" id="terminal-tl-title">user@permission-lab</span></span>
+            <span class="tl-shell">bash</span>
           </div>
           <div class="terminal-body" id="terminal-body" role="log" aria-live="polite"></div>
           <div style="padding: 0 16px 14px">
+            <div class="terminal-prompt-info" id="terminal-prompt-info"></div>
             <div class="terminal-input-row">
-              <span id="terminal-prompt-prefix"></span>
+              <span class="terminal-prompt-glyph" id="terminal-prompt-glyph"></span>
               <input id="terminal-input" class="terminal-input" type="text" aria-label="Terminal input" autocomplete="off" spellcheck="false">
             </div>
           </div>
@@ -448,10 +440,24 @@
             <button type="button" data-cmd="find shadow">find shadow</button>
             <button type="button" data-cmd="stat backup.sql">stat backup.sql</button>
             <button type="button" data-cmd="chmod 600 backup.sql">chmod 600 backup.sql</button>
-            <button type="button" data-cmd="chown alice backup.sql">chown alice backup.sql</button>
-            <button type="button" data-cmd="getfacl /opt/app/config/app.yml">getfacl /opt/app/config/app.yml</button>
+            <button type="button" data-cmd="cat /etc/shadow">cat /etc/shadow</button>
+            <button type="button" data-cmd="sudo chown alice backup.sql">sudo chown alice backup.sql</button>
+            <button type="button" data-cmd="sudo getfacl /opt/app/config/app.yml">sudo getfacl app.yml</button>
+            <button type="button" data-cmd="su alice">su alice</button>
+            <button type="button" data-cmd="exit">exit</button>
+            <button type="button" data-cmd="umask 077">umask 077</button>
+            <button type="button" data-cmd="ln -s notes.txt mylink">ln -s notes.txt mylink</button>
+            <button type="button" data-cmd="ps aux">ps aux</button>
+            <button type="button" data-cmd="sudo journalctl -u sshd">sudo journalctl -u sshd</button>
+            <button type="button" data-cmd="ss -tulpn">ss -tulpn</button>
+            <button type="button" data-cmd="sudo find / -perm -4000">sudo find / -perm -4000</button>
+            <button type="button" data-cmd="getcap -r /">getcap -r /</button>
+            <button type="button" data-cmd="sudo -l">sudo -l</button>
           </div>
         </div>
+
+        <section class="scenario-panel" id="scenario-mount" aria-labelledby="scenario-heading"></section>
+        <div id="scenario-live" class="sr-only" role="status" aria-live="polite"></div>
       </section>
 
       <!-- ========================= LEARN ========================= -->
@@ -565,24 +571,12 @@
           <div class="cheat-example"><div class="ce-octal">1000</div><div class="ce-desc">Sticky — only owner can delete, on directories</div></div>
         </div>
 
-        <h3 data-i18n="cheat.commonCommands">Common Linux commands</h3>
+        <h3 data-i18n="cheat.allCommands">All terminal commands</h3>
+        <p style="color:var(--text-secondary);margin:-8px 0 12px" data-i18n="cheat.allCommandsDesc">Every command the Terminal Simulator understands, with every flag it actually supports — the same list "help" prints inside the terminal. The search box above filters this table too.</p>
         <div class="cheat-table-wrap" style="margin-bottom:var(--space-5)" dir="ltr">
           <table class="cheat-table">
-            <thead><tr><th scope="col" data-i18n="cheat.colCommand">Command</th><th scope="col" data-i18n="cheat.colDoes">What it does</th></tr></thead>
-            <tbody>
-              <tr><td>chmod 755 file</td><td class="desc">Set a file's permission mode.</td></tr>
-              <tr><td>chmod u+x file</td><td class="desc">Add execute for the owner only, symbolically.</td></tr>
-              <tr><td>chown user:group file</td><td class="desc">Change owner and group in one command.</td></tr>
-              <tr><td>chgrp group file</td><td class="desc">Change only the owning group.</td></tr>
-              <tr><td>umask 022</td><td class="desc">Set the default permission mask for newly created files.</td></tr>
-              <tr><td>ls -l</td><td class="desc">List files with permissions, owner, group, size and date.</td></tr>
-              <tr><td>ls -la</td><td class="desc">Same, including hidden dotfiles.</td></tr>
-              <tr><td>stat file</td><td class="desc">Show detailed permission and metadata for one file.</td></tr>
-              <tr><td>find / -perm -4000</td><td class="desc">List every SUID binary on the system.</td></tr>
-              <tr><td>find / -perm -o+w -type f</td><td class="desc">List every world-writable regular file.</td></tr>
-              <tr><td>getfacl file</td><td class="desc">Show a file's Access Control List entries.</td></tr>
-              <tr><td>setfacl -m u:name:rx file</td><td class="desc">Grant an individual user extra ACL access.</td></tr>
-            </tbody>
+            <thead><tr><th scope="col" data-i18n="cheat.colCommand">Command</th><th scope="col" data-i18n="cheat.colDoes">What it does</th><th scope="col" data-i18n="cheat.colRequires">Requires</th></tr></thead>
+            <tbody id="cmd-table-body"></tbody>
           </table>
         </div>
 
@@ -640,6 +634,8 @@
         <div class="achievement-grid" id="achievement-grid-mount"></div>
 
         <div style="margin-top:var(--space-6)" id="progress-certificate-mount"></div>
+
+        <div style="margin-top:var(--space-6)" id="progress-danger-mount"></div>
       </section>
 
       <!-- ========================= ABOUT ========================= -->
@@ -717,16 +713,7 @@
     <p style="color:#6f8180;font-size:0.82rem;margin:0;">Then visit http://localhost:8080 — Firefox and Safari are more lenient about file:// modules, but a local server is the reliable fix everywhere, including GitHub Pages deployment.</p>
   </div>
 </div>
-<script>
-  // Non-module script: runs even when type="module" scripts are blocked by the
-  // browser's file:// CORS policy. If app.js hasn't flagged itself ready after
-  // a short delay, assume modules were blocked and show the fallback notice.
-  setTimeout(function () {
-    if (document.documentElement.dataset.appReady !== "true") {
-      document.getElementById("module-blocked-banner").style.display = "flex";
-    }
-  }, 900);
-</script>
+<script src="assets/js/boot-fallback.js"></script>
 <script type="module" src="assets/js/app.js"></script>
 </body>
 </html>

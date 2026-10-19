@@ -7,7 +7,7 @@
  * already owned by the other modules — progress.js stores nothing new.
  */
 
-import { qs, el, onProgressChanged, copyToClipboard, toast, navigateToView } from "./utils.js";
+import { qs, el, onProgressChanged, emitProgressChanged, copyToClipboard, toast, navigateToView, saveState } from "./utils.js";
 import { CHALLENGES } from "./challenges-data.js";
 import { getChallengeProgress, challengeTotalXP, challengeMaxXP } from "./challenges.js";
 import { getQuizStats } from "./quiz.js";
@@ -16,6 +16,8 @@ import { LABS } from "./labs-data.js";
 import { renderAchievementGrid, earnedAchievementCount, totalAchievementCount, computeAchievements } from "./achievements.js";
 import { readTopicCount, totalTopicCount, firstUnreadTopicId } from "./learn.js";
 import { t, onLocaleChanged } from "./i18n.js";
+import { getScenarioProgress, scenarioTotalXP } from "./scenario-progress.js";
+import { SCENARIOS } from "./scenarios-data.js";
 
 const LEVEL_STEP_XP = 250;
 
@@ -25,10 +27,11 @@ export function computeTotals() {
   const labsXP = Object.values(labsProgress).reduce((s, p) => s + (p.xp || 0), 0);
   const quiz = getQuizStats();
   const quizXP = quiz.totalCorrect * 5;
-  const totalXP = challengeXP + labsXP + quizXP;
+  const scenarioXP = scenarioTotalXP();
+  const totalXP = challengeXP + labsXP + quizXP + scenarioXP;
   const level = Math.floor(totalXP / LEVEL_STEP_XP) + 1;
   const xpIntoLevel = totalXP % LEVEL_STEP_XP;
-  return { challengeXP, labsXP, quizXP, totalXP, level, xpIntoLevel };
+  return { challengeXP, labsXP, quizXP, scenarioXP, totalXP, level, xpIntoLevel };
 }
 
 function renderStatsPanel() {
@@ -107,9 +110,10 @@ export function buildProgressSnapshot() {
     exportedAt: new Date().toISOString(),
     level: totals.level,
     totalXP: totals.totalXP,
-    xpBreakdown: { challenges: totals.challengeXP, labs: totals.labsXP, quiz: totals.quizXP },
+    xpBreakdown: { challenges: totals.challengeXP, labs: totals.labsXP, quiz: totals.quizXP, scenarios: totals.scenarioXP },
     challenges: { completed: Object.keys(challengeProgress).length, total: CHALLENGES.length },
     labs: { completed: Object.keys(labsProgress).length, total: LABS.length },
+    scenarios: { completed: Object.keys(getScenarioProgress()).length, total: SCENARIOS.length },
     quiz: {
       roundsPlayed: quiz.roundsPlayed,
       totalAnswered: quiz.totalAnswered,
@@ -180,6 +184,39 @@ function renderSharePanel() {
    Nothing new is persisted here beyond the topic read-tracking that lives
    in learn.js itself. */
 
+/**
+ * Clears everything that counts as "progress" — challenges, labs, quiz
+ * stats, read-topics — while leaving locale/theme untouched. Achievements,
+ * XP and level need no separate reset since they're always derived from
+ * these same four keys (see achievements.js/computeTotals above).
+ * Pure state mutation only; no confirm dialog or toast here, so it stays
+ * trivially testable — see renderDangerZonePanel for the UI that calls it.
+ */
+export function resetAllProgress() {
+  saveState({ challengeProgress: undefined, labsProgress: undefined, quizStats: undefined, readTopics: undefined, scenarioProgress: undefined });
+  emitProgressChanged();
+}
+
+function renderDangerZonePanel() {
+  const mount = qs("#progress-danger-mount");
+  if (!mount) return;
+  mount.innerHTML = "";
+  mount.append(
+    el("div", { class: "panel", style: "border-color:var(--crit-500)" }, [
+      el("div", { class: "panel-title" }, [el("span", { class: "dot", style: "background:var(--crit-500)" }), t("progress.dangerZone")]),
+      el("p", { class: "text-tertiary", style: "font-size:0.85rem;margin:4px 0 14px" }, t("progress.resetDesc")),
+      el("button", {
+        class: "btn btn-ghost btn-sm", style: "border-color:var(--crit-500);color:var(--crit-500)",
+        onClick: () => {
+          if (!window.confirm(t("progress.resetConfirm"))) return;
+          resetAllProgress();
+          toast(t("progress.resetDone"), "success");
+        },
+      }, t("progress.resetBtn")),
+    ]),
+  );
+}
+
 export function computePathPhases() {
   const challengesDone = Object.keys(getChallengeProgress()).length;
   const labsDone = Object.keys(getLabsProgress()).length;
@@ -236,6 +273,7 @@ export function initProgress() {
   renderCertificate();
   renderSharePanel();
   renderAchievementGrid("#achievement-grid-mount");
+  renderDangerZonePanel();
   onProgressChanged(() => {
     renderStatsPanel();
     renderPathPanel();
@@ -249,5 +287,6 @@ export function initProgress() {
     renderCertificate();
     renderSharePanel();
     renderAchievementGrid("#achievement-grid-mount");
+    renderDangerZonePanel();
   });
 }
