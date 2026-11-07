@@ -4,11 +4,11 @@
  * chmod, chown, chgrp, getfacl, setfacl, umask.
  */
 import { octalToState, stateToSymbolic, triadToSymbol } from "./converter.js";
-import { permsIntersect, recalcAclMask } from "./engine/acl.js";
+import { permsIntersect, recalcAclMask, commitAcl, applyChmod, groupObjPerms } from "./engine/acl.js";
 import { resolveWriteTarget } from "./engine/fs-model.js";
 import {
   USERS, GROUP_IDS, getUser, groupExists, canChmod, canChown, canChgrp,
-  parseUmask, newFileMode, newDirMode, umaskSymbolic,
+  parseUmask, newFileMode, newDirMode, umaskSymbolic, modeAfterChown, modeAfterChmod,
 } from "./engine/users.js";
 import { escapeHTML } from "./engine/safe-html.js";
 import { session, me } from "./terminal-state.js";
@@ -24,15 +24,28 @@ export function handleChmod(args, container) {
     const { target, followedSymlink, dangling } = resolveWriteTarget(node);
     if (dangling) { printLine(`<span class="t-err">chmod: cannot operate on dangling symlink '${escapeHTML(filename)}'</span>`, container); return; }
     if (!canChmod(target, me())) { deny(`chmod: changing permissions of '${filename}': Operation not permitted`, `only the file's owner (${target.owner}) or root may change its mode — '${me()}' is neither. Group or write access doesn't help here.`, container); return; }
-    target.octal = mode;
-    if (target.acl && target.acl.length) recalcAclMask(target);
-    const state = octalToState(mode, target.isDir);
+    const res = modeAfterChmod(mode, target, me());
+    const hadAcl = applyChmod(target, res.octal);
+    const state = octalToState(res.octal, target.isDir);
+    const notes = [];
+    if (res.droppedSetgid) notes.push(`the setgid bit was dropped: '${me()}' is not in group '${target.group}', and the kernel silently refuses to let you set setgid on a file of a group you don't belong to.`);
+    if (res.keptDirBits.length) notes.push(`this directory's ${res.keptDirBits.join(" and ")} bit${res.keptDirBits.length > 1 ? "s were" : " was"} kept — GNU chmod never clears them with a numeric mode (the sticky bit, by contrast, comes only from your argument).`);
+    if (hadAcl) notes.push(`this file has ACL entries, so the group digit you just set is now the ACL MASK (${target.aclMask}): it caps every named entry, while the owning group's own entry stays ${groupObjPerms(target)}. Check getfacl.`);
+    const noteHtml = notes.length ? `\n<span class="t-dim">${notes.map((n) => escapeHTML(n)).join("\n")}</span>` : "";
     if (followedSymlink) {
-      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chmod follows it and changes its target instead.</span>\n<span class="t-ok">mode of '${escapeHTML(target.path)}' changed to ${mode} (${stateToSymbolic(state)})</span>`, container);
+      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chmod follows it and changes its target instead.</span>\n<span class="t-ok">mode of '${escapeHTML(target.path)}' changed to ${res.octal} (${stateToSymbolic(state)})</span>${noteHtml}`, container);
       return;
     }
-    printLine(`<span class="t-ok">mode of '${escapeHTML(filename)}' changed to ${mode} (${stateToSymbolic(state)}${target.acl && target.acl.length ? "+" : ""})</span>${target.acl && target.acl.length ? `\n<span class="t-dim">This file has ACL entries, so its mask was recalculated to ${target.aclMask} — check getfacl, the group digit alone no longer tells the whole story.</span>` : ""}`, container);
+    printLine(`<span class="t-ok">mode of '${escapeHTML(filename)}' changed to ${res.octal} (${stateToSymbolic(state)}${hadAcl ? "+" : ""})</span>${noteHtml}`, container);
   });
+}
+
+/** The kernel clears setuid (and setgid when the group has x) on every chown/chgrp of a non-directory. */
+function clearSpecialBitsOnChown(target) {
+  const r = modeAfterChown(target.octal, target.isDir);
+  if (!r.cleared.length) return "";
+  target.octal = r.octal;
+  return `\n<span class="t-dim">the ${r.cleared.join(" and ")} bit${r.cleared.length > 1 ? "s were" : " was"} cleared — Linux does this on every chown/chgrp of a file (not a directory), so a changed owner can't inherit a privileged binary. Mode is now ${escapeHTML(r.octal)}.</span>`;
 }
 
 export function handleChown(args, container) {
@@ -42,13 +55,15 @@ export function handleChown(args, container) {
     const { target, followedSymlink, dangling } = resolveWriteTarget(node);
     if (dangling) { printLine(`<span class="t-err">chown: cannot operate on dangling symlink '${escapeHTML(filename)}'</span>`, container); return; }
     if (!getUser(owner)) { printLine(`<span class="t-err">chown: invalid user: '${escapeHTML(owner)}'</span>\n<span class="t-dim">known users: ${Object.keys(USERS).join(", ")}</span>`, container); return; }
-    if (!canChown(me())) { deny(`chown: changing ownership of '${filename}': Operation not permitted`, `only root may change a file's owner — even the current owner can't give a file away. Try: sudo chown ${owner} ${filename}`, container); return; }
+    // The kernel lets the owner "change" the owner to the value it already has; only a real change needs root.
+    if (!canChown(me()) && !(me() === target.owner && owner === target.owner)) { deny(`chown: changing ownership of '${filename}': Operation not permitted`, `only root may change a file's owner — even the current owner can't give a file away. Try: sudo chown ${owner} ${filename}`, container); return; }
     target.owner = owner;
+    const cleared = clearSpecialBitsOnChown(target);
     if (followedSymlink) {
-      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chown follows it by default (use lchown to target the link itself, not supported here).</span>\n<span class="t-ok">owner of '${escapeHTML(target.path)}' changed to ${escapeHTML(owner)}</span>`, container);
+      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chown follows it by default (use lchown to target the link itself, not supported here).</span>\n<span class="t-ok">owner of '${escapeHTML(target.path)}' changed to ${escapeHTML(owner)}</span>${cleared}`, container);
       return;
     }
-    printLine(`<span class="t-ok">owner of '${escapeHTML(filename)}' changed to ${escapeHTML(owner)}</span>`, container);
+    printLine(`<span class="t-ok">owner of '${escapeHTML(filename)}' changed to ${escapeHTML(owner)}</span>${cleared}`, container);
   });
 }
 
@@ -61,11 +76,12 @@ export function handleChgrp(args, container) {
     if (!groupExists(group)) { printLine(`<span class="t-err">chgrp: invalid group: '${escapeHTML(group)}'</span>\n<span class="t-dim">known groups: ${Object.keys(GROUP_IDS).join(", ")}</span>`, container); return; }
     if (!canChgrp(target, me(), group)) { deny(`chgrp: changing group of '${filename}': Operation not permitted`, `non-root users may only change the group of files they OWN, and only to a group they belong to. '${me()}' is in: ${(getUser(me())?.groups || []).join(", ")}; the file's owner is ${target.owner}.`, container); return; }
     target.group = group;
+    const cleared = clearSpecialBitsOnChown(target);
     if (followedSymlink) {
-      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chgrp follows it by default, same as chown.</span>\n<span class="t-ok">group of '${escapeHTML(target.path)}' changed to ${escapeHTML(group)}</span>`, container);
+      printLine(`<span class="t-dim">'${escapeHTML(filename)}' is a symlink — chgrp follows it by default, same as chown.</span>\n<span class="t-ok">group of '${escapeHTML(target.path)}' changed to ${escapeHTML(group)}</span>${cleared}`, container);
       return;
     }
-    printLine(`<span class="t-ok">group of '${escapeHTML(filename)}' changed to ${escapeHTML(group)}</span>`, container);
+    printLine(`<span class="t-ok">group of '${escapeHTML(filename)}' changed to ${escapeHTML(group)}</span>${cleared}`, container);
   });
 }
 
@@ -74,7 +90,7 @@ export function handleGetfacl(args, container) {
     const state = octalToState(node.octal, node.isDir);
     const acl = node.acl || [];
     const hasExt = acl.length > 0;
-    const mask = hasExt ? (node.aclMask || triadToSymbol(state.group)) : null;
+    const mask = hasExt ? (node.aclMask || recalcAclMask(node)) : null;
     const withEffective = (perms) => (mask && permsIntersect(perms, mask) !== perms ? `${perms}\t#effective:${permsIntersect(perms, mask)}` : perms);
 
     const lines = [
@@ -84,7 +100,7 @@ export function handleGetfacl(args, container) {
       `user::${triadToSymbol(state.owner)}`,
     ];
     acl.filter((e) => e.type === "user").forEach((e) => lines.push(`user:${e.id}:${withEffective(e.perms)}`));
-    lines.push(`group::${withEffective(triadToSymbol(state.group))}`);
+    lines.push(`group::${withEffective(hasExt ? groupObjPerms(node) : triadToSymbol(state.group))}`);
     acl.filter((e) => e.type === "group").forEach((e) => lines.push(`group:${e.id}:${withEffective(e.perms)}`));
     if (hasExt) lines.push(`mask::${mask}`);
     lines.push(`other::${triadToSymbol(state.others)}`);
@@ -113,14 +129,14 @@ export function handleSetfacl(args, container) {
       if (!/^[r-][w-][x-]$/.test(perms)) { printLine(`<span class="t-err">setfacl: invalid permission string '${escapeHTML(parts[2] || "")}' — expected 3 chars like rwx, rw-, r--</span>`, container); return; }
       const existing = node.acl.find((e) => e.type === type && e.id === id);
       if (existing) existing.perms = perms; else node.acl.push({ type, id, perms });
-      recalcAclMask(node);
-      printLine(`<span class="t-ok">${type}:${escapeHTML(id)}:${perms} applied to '${escapeHTML(filename)}'</span>\n<span class="t-dim">mask recalculated to ${node.aclMask} — every named entry's real access is capped by this mask, not by the number you just set. Run getfacl to see the effective bits.</span>`, container);
+      commitAcl(node);
+      printLine(`<span class="t-ok">${type}:${escapeHTML(id)}:${perms} applied to '${escapeHTML(filename)}'</span>\n<span class="t-dim">mask recalculated to ${node.aclMask} — every named entry's real access is capped by this mask, not by the number you just set. Run getfacl to see the effective bits.\nAs on Linux, the mode's group digit now shows the MASK (mode ${escapeHTML(node.octal)}); the owning group's own entry is kept separately as group::${groupObjPerms(node)}.</span>`, container);
     } else {
       const before = node.acl.length;
       node.acl = node.acl.filter((e) => !(e.type === type && e.id === id));
       if (node.acl.length === before) { printLine(`<span class="t-dim">setfacl: no matching entry ${type}:${escapeHTML(id)} on '${escapeHTML(filename)}'</span>`, container); return; }
-      recalcAclMask(node);
-      printLine(`<span class="t-ok">removed ${type}:${escapeHTML(id)} from '${escapeHTML(filename)}'</span>`, container);
+      commitAcl(node);
+      printLine(`<span class="t-ok">removed ${type}:${escapeHTML(id)} from '${escapeHTML(filename)}'</span>${node.acl.length ? "" : `\n<span class="t-dim">no extended entries left — the mode bits are authoritative again (mode ${escapeHTML(node.octal)}).</span>`}`, container);
     }
   });
 }

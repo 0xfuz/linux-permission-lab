@@ -5,10 +5,11 @@
  * mkdir, rm, mv, cp, ln -s, the simulated editor notice.
  */
 import { FS_TREE, findNode, parentPath, resolveSymlink } from "./filesystem.js";
+import { resolveWriteTarget } from "./engine/fs-model.js";
 import { octalToState, stateToSymbolic } from "./converter.js";
 import {
   primaryGroup, checkAccess, checkTraverse, checkPathAccess, checkCreate, checkDelete,
-  explainAccess, newFileMode, newDirMode, copiedMode,
+  explainAccess, newFileMode, newDirMode, copiedMode, newEntryGroup, isSetgidDir,
 } from "./engine/users.js";
 import { linkLocation, placeSymlink, baseName } from "./engine/links.js";
 import { escapeHTML } from "./engine/safe-html.js";
@@ -30,6 +31,16 @@ export function handleLs(args, container) {
 
   const showAll = flags.includes("a");
   const visible = showAll ? children : children.filter((c) => !c.name.startsWith("."));
+
+  if (flags.includes("l") && !checkAccess(node, me(), "x")) {
+    // Real ls -l stat()s every entry, and stat needs x (search) on the directory: with r alone you get the names
+    // but no metadata — each row is "?????????" and each entry is reported as Permission denied.
+    const base = target ? target.replace(/\/+$/, "") + "/" : "";
+    const errs = visible.map((c) => `<span class="t-err">ls: cannot access '${escapeHTML(base + c.name)}': Permission denied</span>`);
+    const rows = visible.map((c) => `-?????????  ?         ?         ${c.isDir ? `<span class="t-path">${escapeHTML(c.name)}/</span>` : escapeHTML(c.name)}`);
+    printLine(`${errs.join("\n")}\n${rows.join("\n")}\n<span class="t-dim">ls -l reads each entry's owner and mode, which needs x (search) on the directory. '${escapeHTML(me())}' has only r here, so names are listed but nothing else. ${escapeHTML(explainAccess(node, me(), "x"))}</span>`, container);
+    return;
+  }
 
   if (flags.includes("l")) {
     const rows = visible.map((c) => {
@@ -231,8 +242,9 @@ export function handleTouch(args, container) {
   const name = path.split("/").pop();
   const mode = newFileMode(session.umask);
   parent.children = parent.children || [];
-  parent.children.push({ name, path, isDir: false, octal: mode, owner: me(), group: primaryGroup(me()), sensitive: false, note: "A new empty file created in this simulation.", acl: [] });
-  printLine(`<span class="t-ok">created ${escapeHTML(path)}</span>\n<span class="t-dim">mode ${mode} = 666 &amp; ~${session.umask} (umask), owner ${me()}:${primaryGroup(me())} — change the umask and create another file to see the difference.</span>`, container);
+  const grp = newEntryGroup(parent, me());
+  parent.children.push({ name, path, isDir: false, octal: mode, owner: me(), group: grp, sensitive: false, note: "A new empty file created in this simulation.", acl: [] });
+  printLine(`<span class="t-ok">created ${escapeHTML(path)}</span>\n<span class="t-dim">mode ${mode} = 666 &amp; ~${session.umask} (umask), owner ${me()}:${grp}${grp !== primaryGroup(me()) ? ` — the group comes from the setgid directory ${escapeHTML(parent.path)}, not from your primary group` : ""} — change the umask and create another file to see the difference.</span>`, container);
 }
 
 export function handleMkdir(args, container) {
@@ -245,14 +257,18 @@ export function handleMkdir(args, container) {
   const mayMake = checkCreate(path, me());
   if (!mayMake.ok) { deny(`mkdir: cannot create directory '${args[0]}': Permission denied`, explainCreateDenied(mayMake), container); return; }
   const name = path.split("/").pop();
-  const mode = newDirMode(session.umask);
+  const umaskMode = newDirMode(session.umask);
+  const inherits = isSetgidDir(parent);
+  const mode = inherits ? `2${umaskMode}` : umaskMode;
+  const grp = newEntryGroup(parent, me());
   parent.children = parent.children || [];
-  parent.children.push({ name, path, isDir: true, octal: mode, owner: me(), group: primaryGroup(me()), sensitive: false, note: "", children: [] });
-  printLine(`<span class="t-ok">directory created: ${escapeHTML(path)}</span>\n<span class="t-dim">mode ${mode} = 777 &amp; ~${session.umask} (umask), owner ${me()}:${primaryGroup(me())}</span>`, container);
+  parent.children.push({ name, path, isDir: true, octal: mode, owner: me(), group: grp, sensitive: false, note: "", children: [] });
+  printLine(`<span class="t-ok">directory created: ${escapeHTML(path)}</span>\n<span class="t-dim">mode ${mode} = 777 &amp; ~${session.umask} (umask)${inherits ? " + setgid (inherited)" : ""}, owner ${me()}:${grp}${inherits ? ` — the group and the setgid bit come from ${escapeHTML(parent.path)}, so new entries keep inheriting down the tree` : ""}</span>`, container);
 }
 
 export function handleRm(args, container) {
   withTargetNode(args, container, "rm", (node, path) => {
+    if (node.isDir) { printLine(`<span class="t-err">rm: cannot remove '${escapeHTML(args[0])}': Is a directory</span>\n<span class="t-dim">rm only removes files here (real rm needs -r for a directory, and then needs permission on everything inside it).</span>`, container); return; }
     const del = checkDelete(path, node, me());
     if (!del.ok) { denyDelete("rm", `cannot remove '${args[0]}'`, del, container); return; }
     const parent = del.parent;
@@ -261,51 +277,93 @@ export function handleRm(args, container) {
   });
 }
 
+const within = (p, root) => p === root || p.startsWith(root === "/" ? "/" : root + "/");
+
 export function handleMove(args, container) {
   if (args.length < 2) { printLine('<span class="t-err">usage: mv &lt;source&gt; &lt;destination&gt;</span>', container); return; }
   withTargetNode([args[0]], container, "mv", (node, srcPath) => {
     const destPath = resolveArg(args[1]);
+    const destNode = findNode(FS_TREE, destPath);
+    const intoDir = !!destNode?.isDir;
     const oldParent = findNode(FS_TREE, parentPath(srcPath));
-    const destParent = findNode(FS_TREE, destPath)?.isDir ? findNode(FS_TREE, destPath) : findNode(FS_TREE, parentPath(destPath));
+    const destParent = intoDir ? destNode : findNode(FS_TREE, parentPath(destPath));
     if (!destParent || !destParent.isDir) { printLine('<span class="t-err">mv: destination directory does not exist</span>', container); return; }
+    const mvFinal = intoDir ? (destPath === "/" ? "" : destPath) + "/" + node.name : destPath;
+    if (mvFinal === srcPath) { printLine(`<span class="t-err">mv: '${escapeHTML(args[0])}' and '${escapeHTML(args[1])}' are the same file</span>`, container); return; }
+    // A directory can never be moved into itself or its own subtree (that would detach it from the tree).
+    if (node.isDir && within(destParent.path, srcPath)) { printLine(`<span class="t-err">mv: cannot move '${escapeHTML(args[0])}' to a subdirectory of itself, '${escapeHTML(mvFinal)}'</span>`, container); return; }
     const mvOut = checkDelete(srcPath, node, me());
     if (!mvOut.ok) { denyDelete("mv", `cannot move '${args[0]}'`, mvOut, container); return; }
-    const mvFinal = findNode(FS_TREE, destPath)?.isDir ? (destPath === "/" ? "" : destPath) + "/" + node.name : destPath;
     if (!nameOk("mv", mvFinal, container)) return;
+    // Moving onto an existing name REPLACES it (one node must remain), under the same rules as deleting it.
+    const existing = findNode(FS_TREE, mvFinal);
+    if (existing && existing !== node) {
+      if (existing.isDir && !node.isDir) { printLine(`<span class="t-err">mv: cannot overwrite directory '${escapeHTML(args[1])}' with non-directory</span>`, container); return; }
+      if (!existing.isDir && node.isDir) { printLine(`<span class="t-err">mv: cannot overwrite non-directory '${escapeHTML(args[1])}' with directory '${escapeHTML(args[0])}'</span>`, container); return; }
+      if (existing.isDir && (existing.children || []).length) { printLine(`<span class="t-err">mv: cannot move '${escapeHTML(args[0])}' to '${escapeHTML(args[1])}': Directory not empty</span>`, container); return; }
+      const rep = checkDelete(mvFinal, existing, me());
+      if (!rep.ok) { denyDelete("mv", `cannot move '${args[0]}' to '${args[1]}'`, rep, container); return; }
+    }
     const mvIn = checkCreate(mvFinal, me());
     if (!mvIn.ok) { deny(`mv: cannot move '${args[0]}' to '${args[1]}': Permission denied`, explainCreateDenied(mvIn), container); return; }
     oldParent.children = oldParent.children.filter((c) => c !== node);
-    const newName = findNode(FS_TREE, destPath)?.isDir ? node.name : destPath.split("/").pop();
-    node.name = newName;
+    if (existing && existing !== node) destParent.children = (destParent.children || []).filter((c) => c !== existing);
+    node.name = mvFinal.split("/").pop();
     destParent.children = destParent.children || [];
     destParent.children.push(node);
     reassignSubtreePaths(node, destParent.path);
-    printLine(`<span class="t-ok">moved to ${escapeHTML(node.path)}</span>`, container);
+    printLine(`<span class="t-ok">moved to ${escapeHTML(node.path)}</span>${existing && existing !== node ? '\n<span class="t-dim">an existing entry with that name was replaced (mv keeps the SOURCE file\'s owner, mode and ACL).</span>' : ""}`, container);
   });
+}
+
+/** cp without -p/-a never copies ACL entries (measured on Linux): drop them from the clone and its children. */
+function stripAcl(n) {
+  n.acl = []; delete n.aclMask; delete n.aclGroup;
+  (n.children || []).forEach(stripAcl);
 }
 
 export function handleCopy(args, container) {
   if (args.length < 2) { printLine('<span class="t-err">usage: cp &lt;source&gt; &lt;destination&gt;</span>', container); return; }
   withTargetNode([args[0]], container, "cp", (node) => {
     const destPath = resolveArg(args[1]);
-    const destParent = findNode(FS_TREE, destPath)?.isDir ? findNode(FS_TREE, destPath) : findNode(FS_TREE, parentPath(destPath));
+    const destNode = findNode(FS_TREE, destPath);
+    const destParent = destNode?.isDir ? destNode : findNode(FS_TREE, parentPath(destPath));
     if (!destParent || !destParent.isDir) { printLine('<span class="t-err">cp: destination directory does not exist</span>', container); return; }
     const cpSrc = checkPathAccess(node.isSymlink ? (resolveSymlink(node) || node).path : node.path, me(), "r");
     if (!cpSrc.ok) { deny(`cp: cannot open '${args[0]}' for reading: Permission denied`, whyFailed(cpSrc, node.path, "r"), container); return; }
-    const newName = findNode(FS_TREE, destPath)?.isDir ? node.name : destPath.split("/").pop();
+    const newName = destNode?.isDir ? node.name : destPath.split("/").pop();
     const cpFinal = (destParent.path === "/" ? "" : destParent.path) + "/" + newName;
     if (!nameOk("cp", cpFinal, container)) return;
+
+    const existing = findNode(FS_TREE, cpFinal);
+    if (existing) {
+      // cp onto an existing file rewrites its CONTENTS: the file keeps its owner, mode and ACL, and what matters is
+      // write permission on that file (not on the directory). There must still be exactly one node afterwards.
+      if (existing === node) { printLine(`<span class="t-err">cp: '${escapeHTML(args[0])}' and '${escapeHTML(args[1])}' are the same file</span>`, container); return; }
+      if (existing.isDir) { printLine(`<span class="t-err">cp: cannot overwrite directory '${escapeHTML(args[1])}' with non-directory</span>`, container); return; }
+      if (node.isDir) { printLine(`<span class="t-err">cp: cannot overwrite non-directory '${escapeHTML(args[1])}' with directory '${escapeHTML(args[0])}'</span>`, container); return; }
+      const { target: dst, dangling } = resolveWriteTarget(existing);
+      if (dangling) { printLine(`<span class="t-err">cp: cannot create regular file '${escapeHTML(args[1])}': dangling symlink</span>`, container); return; }
+      const wr = checkPathAccess(dst.path, me(), "w");
+      if (!wr.ok) { deny(`cp: cannot create regular file '${args[1]}': Permission denied`, whyFailed(wr, dst.path, "w"), container); return; }
+      dst.note = (node.isSymlink ? (resolveSymlink(node) || node) : node).note || "";
+      printLine(`<span class="t-ok">copied over existing ${escapeHTML(dst.path)}</span>\n<span class="t-dim">cp rewrote the contents only: the file keeps its owner (${escapeHTML(dst.owner)}), mode (${escapeHTML(dst.octal)}) and ACL.</span>`, container);
+      return;
+    }
+
     const cpIn = checkCreate(cpFinal, me());
     if (!cpIn.ok) { deny(`cp: cannot create '${args[1]}': Permission denied`, explainCreateDenied(cpIn), container); return; }
     const clone = JSON.parse(JSON.stringify(node));
     clone.name = newName;
     clone.owner = me();
-    clone.group = primaryGroup(me());
+    clone.group = newEntryGroup(destParent, me());
     clone.octal = copiedMode(node.octal, session.umask);
+    if (clone.isDir && isSetgidDir(destParent)) clone.octal = `2${clone.octal}`;
+    stripAcl(clone);
     destParent.children = destParent.children || [];
     destParent.children.push(clone);
     reassignSubtreePaths(clone, destParent.path);
-    printLine(`<span class="t-ok">copied to ${escapeHTML(clone.path)}</span>\n<span class="t-dim">the copy belongs to ${me()}:${primaryGroup(me())} (not the original owner) and its mode is ${clone.octal} = source ${node.octal} &amp; ~${session.umask}.</span>`, container);
+    printLine(`<span class="t-ok">copied to ${escapeHTML(clone.path)}</span>\n<span class="t-dim">the copy belongs to ${me()}:${clone.group} (not the original owner${clone.group !== primaryGroup(me()) ? "; the group comes from the setgid directory" : ""}) and its mode is ${clone.octal} = source ${node.octal} &amp; ~${session.umask}.${node.acl && node.acl.length ? " Plain cp does not copy ACL entries (only cp -p / -a would), so the copy has none." : ""}</span>`, container);
   });
 }
 

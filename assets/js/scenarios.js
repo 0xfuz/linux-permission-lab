@@ -10,7 +10,7 @@
  * never parsed as HTML. The build* functions are pure (model in → nodes
  * out) so they can be tested without a browser.
  */
-import { qs, el, toast } from "./utils.js";
+import { qs, el, toast, onProgressChanged } from "./utils.js";
 import { t, getLocale, onLocaleChanged } from "./i18n.js";
 import { SCENARIOS, CHALLENGE_SCENARIOS } from "./scenarios-data.js";
 import { SCENARIOS_AR } from "./scenarios-data.ar.js";
@@ -30,12 +30,14 @@ export function scenarioText(def, locale = getLocale()) {
     objectives: ar?.objectives ?? def.objectives,
     task: ar?.task ?? def.task,
     incident: ar?.incident ?? def.incident,
+    policy: ar?.policy ?? def.policy ?? null,
     completion: ar?.completion ?? def.completion,
     hints: ar?.hints ?? def.hints,
     rootCause: ar?.rootCause ?? def.rootCause,
     quality: (q) => ar?.qualityText?.[q] ?? def.qualityText?.[q] ?? "",
     check: (c) => ar?.checks?.[c.id] ?? c.label,
     evidence: (e) => ar?.evidence?.[e.id] ?? e.label,
+    verification: (p) => ar?.verification?.[p.id] ?? p.label,
     diagnosis: (d) => ({ label: ar?.diagnoses?.[d.id]?.label ?? d.label, why: ar?.diagnoses?.[d.id]?.why ?? d.why }),
   };
 }
@@ -134,6 +136,7 @@ export function buildInvestigationView(m) {
     el("h3", { class: "sc-title" }, text.title),
     stepper(snap.phase),
     el("div", { class: "sc-block" }, [el("h4", { class: "eyebrow" }, t("sc.incident")), el("p", {}, text.incident)]),
+    text.policy ? el("div", { class: "sc-block" }, [el("h4", { class: "eyebrow" }, t("sc.policy")), el("ul", { class: "sc-list" }, text.policy.map((x) => el("li", {}, x)))]) : null,
     objectivesBlock(text),
   ];
 
@@ -153,7 +156,7 @@ export function buildInvestigationView(m) {
         el("span", { class: "sc-check-body" }, [
           el("span", {}, text.evidence(e)),
           got ? el("span", { class: "sr-only" }, ` — ${t("sc.pass")}`) : el("span", { class: "text-tertiary" }, ` — ${t("sc.evidence.pending")}`),
-          got ? el("span", { class: "sc-detail sc-mono" }, `$ ${got.command}\n${got.finding}`) : null,
+          got ? el("span", { class: "sc-detail sc-mono", dir: "ltr" }, `$ ${got.command}\n${got.finding}`) : null,
         ]),
       ]);
     })),
@@ -181,7 +184,7 @@ export function buildInvestigationView(m) {
     diagBlock.push(el("div", { class: "sc-diag-entry" }, [
       el("p", { class: d.correct ? "feedback-safe" : "feedback-warn" }, `${d.correct ? t("sc.diagnosis.correct") : t("sc.diagnosis.wrong")} ${d.label}`),
       el("p", {}, d.why),
-      el("p", { class: "sc-detail sc-mono" }, `${t("sc.diagnosis.live")} ${d.live}`),
+      el("p", { class: "sc-detail sc-mono", dir: "ltr" }, `${t("sc.diagnosis.live")} ${d.live}`),
     ]));
   });
   kids.push(el("div", { class: "sc-block" }, diagBlock));
@@ -204,11 +207,47 @@ export function buildInvestigationView(m) {
     kids.push(el("div", { class: "sc-block" }, fixKids));
   }
   if (snap.phase === "verification") {
-    kids.push(el("div", { class: "sc-block" }, [el("h4", { class: "eyebrow" }, t("sc.verify")), el("p", {}, t("sc.verify.desc"))]));
+    const probeRows = def.verification ? el("ul", { class: "sc-checks" }, def.verification.map((p) => {
+      const got = snap.verified && snap.verified[p.id];
+      return el("li", { class: `sc-check ${got ? "sc-pass" : "sc-pending"}` }, [
+        el("span", { class: "sc-check-icon", "aria-hidden": "true" }, got ? "✓" : "○"),
+        el("span", { class: "sc-check-body" }, [
+          el("span", {}, text.verification(p)),
+          got ? el("span", { class: "sr-only" }, ` — ${t("sc.pass")}`) : el("span", { class: "text-tertiary" }, ` — ${t("sc.verify.pending")}`),
+          got ? el("span", { class: "sc-detail sc-mono", dir: "ltr" }, `$ ${got.command}`) : null,
+        ]),
+      ]);
+    })) : null;
+    kids.push(el("div", { class: "sc-block" }, [el("h4", { class: "eyebrow" }, t("sc.verify")), el("p", {}, def.verification ? t("sc.verify.desc2") : t("sc.verify.desc")), probeRows]));
   }
 
   // Completion
-  if (snap.phase === "complete" && m.summary) {
+  if (snap.phase === "complete" && m.summary && m.summary.report) {
+    const rep = m.summary.report;
+    const checkLabel = (r) => text.check(def.checks.find((c) => c.id === r.id) || r);
+    kids.push(el("div", { class: "readout sc-report" }, [
+      el("div", { class: "readout-label" }, `${t("sc.resolved")} ${t("sc.report.title")}`),
+      el("h4", { class: "eyebrow" }, t("sc.report.cause")),
+      el("p", { class: "sc-explain" }, text.rootCause),
+      el("h4", { class: "eyebrow" }, t("sc.report.evidence")),
+      el("ul", { class: "sc-list" }, rep.evidence.map((e) => el("li", {}, [
+        el("span", {}, text.evidence(def.evidence.find((x) => x.id === e.id) || e)),
+        el("span", { class: "sc-detail sc-mono", dir: "ltr" }, `$ ${e.command}\n${e.finding}`),
+      ]))),
+      el("h4", { class: "eyebrow" }, t("sc.report.remediation")),
+      el("p", { class: "sc-explain sc-mono", dir: "ltr" }, rep.remediation),
+      el("p", { class: "sc-explain" }, text.quality(m.summary.quality)),
+      el("h4", { class: "eyebrow" }, t("sc.report.verification")),
+      el("ul", { class: "sc-list" }, [
+        ...rep.verification.probes.map((p) => el("li", {}, [
+          el("span", {}, text.verification(def.verification.find((x) => x.id === p.id) || p)),
+          p.command ? el("span", { class: "sc-detail sc-mono", dir: "ltr" }, `$ ${p.command}`) : null,
+        ])),
+        ...rep.verification.checks.filter((r) => r.level === "required").map((r) => el("li", {}, `${r.ok ? "✓" : "✗"} ${checkLabel(r)}`)),
+      ]),
+      el("p", { class: "sc-explain text-tertiary" }, `${t("sc.summary.wrong")}: ${m.summary.wrongDiagnoses} · ${t("sc.summary.hints")}: ${m.summary.hintsUsed}`),
+    ]));
+  } else if (snap.phase === "complete" && m.summary) {
     kids.push(el("div", { class: "readout" }, [
       el("div", { class: "readout-label" }, `${t("sc.resolved")} ${t("sc.summary")}`),
       el("p", { class: "sc-explain" }, text.rootCause),
@@ -286,6 +325,7 @@ function open(def) {
 function onCommand(ev) {
   if (!current || current.kind !== "investigation") return;
   const before = current.session.phase;
+  const progressBefore = progressCount(current);
   current.session.observe(ev);
   const after = current.session.phase;
   if (before === "verification" && after === "remediation") ui.reopened = true;
@@ -293,6 +333,20 @@ function onCommand(ev) {
   if (before !== after || before === "evidence" || before === "diagnosis" || before === "verification") render(null);
   // "complete" already announced its own, more useful message in finishInvestigation().
   if (before !== after && after !== "complete") announce(t("sc.phase." + after));
+  else if (before === after) announceProgress(progressBefore, progressCount(current));
+}
+
+/** Items done so far in the current evidence / verification step, so each tick can be spoken (a screen-reader
+ *  user cannot see the checklist tick off). Pure read of the session snapshot. */
+function progressCount(cur) {
+  const st = cur.session.state;
+  if (st.phase === "evidence") return { kind: "evidence", n: cur.def.evidence.filter((e) => e.required).length - st.missingEvidence.length, of: cur.def.evidence.filter((e) => e.required).length };
+  if (st.phase === "verification" && cur.def.verification) return { kind: "verify", n: cur.def.verification.length - st.missingVerification.length, of: cur.def.verification.length };
+  return null;
+}
+
+function announceProgress(a, b) {
+  if (a && b && a.kind === b.kind && b.n > a.n) announce(`${t("sc.progress." + b.kind)} ${b.n} / ${b.of}`);
 }
 
 function finishInvestigation() {
@@ -376,7 +430,18 @@ function render(focusId) {
     });
   }
   mount.replaceChildren(heading, body);
-  if (focusId) qs(`#${focusId}`, mount)?.focus();
+  const target = resolveFocusId(focusId, (id) => { const n = qs(`#${id}`, mount); return !!n && !n.disabled; });
+  if (target) qs(`#${target}`, mount)?.focus();
+}
+
+/** Where keyboard focus should land after a re-render. The requested control may now be unusable — the Submit
+ *  button stays in the DOM but becomes disabled once a diagnosis is correct, and browsers refuse to focus a
+ *  disabled control — so focus would fall to <body> and a keyboard or screen-reader user would lose their
+ *  place. `has(id)` must say whether the control exists AND can take focus; fall back to a control that can. */
+export function resolveFocusId(focusId, has) {
+  if (!focusId) return null;
+  for (const id of [focusId, "sc-hint", "sc-back"]) if (has(id)) return id;
+  return null;
 }
 
 export function initScenarios() {
@@ -384,6 +449,8 @@ export function initScenarios() {
   if (!mount) return;
   render(null);
   onLocaleChanged(() => render(null));
+  // Reset progress (or any completion elsewhere) must be visible here without a reload; render() keeps the open scenario.
+  onProgressChanged(() => render(null));
 }
 
 export { CHALLENGE_SCENARIOS, activeScenarioId };

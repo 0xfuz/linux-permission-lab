@@ -21,7 +21,7 @@
  */
 
 import { FS_TREE, findNode, parentPath } from "../filesystem.js";
-import { permsIntersect, permsUnion, recalcAclMask } from "./acl.js";
+import { permsIntersect, permsUnion, recalcAclMask, groupObjPerms } from "./acl.js";
 
 /* ------------------------------ identities ------------------------------ */
 
@@ -77,12 +77,14 @@ export function classify(node, name) {
   const acl = node.acl || [];
   const mask = acl.length ? (node.aclMask || recalcAclMask(node)) : null;
   const cap = (p) => (mask ? permsIntersect(p, mask) : p);
+  // With an ACL the mode's group digit is the MASK; the owning group's own entry (group::) is kept separately.
+  const groupBits = acl.length ? groupObjPerms(node) : group;
 
   const named = acl.find((e) => e.type === "user" && e.id === name);
   if (named) return { cls: "acl-user", perms: cap(named.perms) };
 
   const matched = [];
-  if (isInGroup(name, node.group)) matched.push(cap(group));
+  if (isInGroup(name, node.group)) matched.push(cap(groupBits));
   acl.filter((e) => e.type === "group" && isInGroup(name, e.id)).forEach((e) => matched.push(cap(e.perms)));
   if (matched.length) return { cls: "group", perms: matched.reduce(permsUnion) };
 
@@ -170,7 +172,50 @@ export const canChmod = (node, name) => name === "root" || name === node.owner;
 /** Only root may give a file away — otherwise users could dodge disk quotas. */
 export const canChown = (name) => name === "root";
 /** The owner may move a file to a group they themselves belong to. */
-export const canChgrp = (node, name, group) => name === "root" || (name === node.owner && isInGroup(name, group));
+export const canChgrp = (node, name, group) => name === "root" || (name === node.owner && (group === node.group || isInGroup(name, group)));
+
+/* ------------------------- special bits (audited against Linux 6.x + GNU chmod) ------------------------- */
+
+/** A setgid directory hands its group to everything created inside it, and its setgid bit to new directories. */
+export const isSetgidDir = (parent) => !!(parent && parent.isDir && (Number(String(parent.octal).padStart(4, "0").slice(-4)[0]) & 2));
+/** The group a newly created file/dir/symlink gets: the parent's if it is setgid, else the creator's primary group. */
+export const newEntryGroup = (parent, userName) => (isSetgidDir(parent) ? parent.group : primaryGroup(userName));
+
+const splitMode = (octal) => { const s = String(octal).padStart(4, "0").slice(-4); return { special: Number(s[0]), rest: s.slice(1) }; };
+const joinMode = (special, rest) => (special ? `${special}${rest}` : rest);
+
+/**
+ * chown/chgrp on a NON-directory clears setuid, and setgid when the group has execute — even for root and even
+ * when the owner/group does not actually change. Directories keep all special bits.
+ * @returns {{octal:string, cleared:string[]}}
+ */
+export function modeAfterChown(octal, isDir) {
+  if (isDir) return { octal, cleared: [] };
+  const { special, rest } = splitMode(octal);
+  let s = special; const cleared = [];
+  if (s & 4) { s &= ~4; cleared.push("setuid"); }
+  if ((s & 2) && (Number(rest[1]) & 1)) { s &= ~2; cleared.push("setgid"); }
+  return cleared.length ? { octal: joinMode(s, rest), cleared } : { octal, cleared };
+}
+
+/**
+ * The mode chmod really stores. GNU chmod keeps a DIRECTORY's setuid/setgid bits when given a numeric mode
+ * (they can be set but not cleared that way; sticky is taken from the argument), and the kernel silently drops
+ * setgid when a non-root caller is not in the file's group.
+ * @returns {{octal:string, keptDirBits:string[], droppedSetgid:boolean}}
+ */
+export function modeAfterChmod(requested, node, caller) {
+  const { special: want, rest } = splitMode(requested);
+  let s = want; const keptDirBits = []; let droppedSetgid = false;
+  if (node.isDir) {
+    const keep = splitMode(node.octal).special & 6 & ~want;
+    if (keep & 4) keptDirBits.push("setuid");
+    if (keep & 2) keptDirBits.push("setgid");
+    s |= keep;
+  }
+  if ((s & 2) && caller !== "root" && !isInGroup(caller, node.group)) { s &= ~2; droppedSetgid = true; }
+  return { octal: s === want ? requested : joinMode(s, rest), keptDirBits, droppedSetgid };
+}
 
 /* ------------------------------ explanations ----------------------------- */
 

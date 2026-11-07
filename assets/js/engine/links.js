@@ -15,7 +15,7 @@
  */
 
 import { FS_TREE, findNode, parentPath, resolveSymlink } from "../filesystem.js";
-import { primaryGroup } from "./users.js";
+import { primaryGroup, newEntryGroup } from "./users.js";
 
 export function baseName(path) {
   const parts = String(path).split("/").filter(Boolean);
@@ -53,6 +53,7 @@ export function placeSymlink(linkPath, target, userName, { force = false } = {})
   if (existing && !force) return { ok: false, error: "exists" };
   if (existing) parent.children = parent.children.filter((c) => c !== existing);
   const node = buildSymlinkNode(linkPath, target, userName);
+  node.group = newEntryGroup(parent, userName);   // a setgid directory passes its group to new symlinks too
   parent.children = parent.children || [];
   parent.children.push(node);
   return { ok: true, node, replaced: !!existing, dangling: !resolveSymlink(node) };

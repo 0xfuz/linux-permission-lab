@@ -42,6 +42,7 @@ export function createInvestigation(def) {
     diagnosisAttempts: [],   // [{ id, correct }]
     fixAttempts: 0,
     lastFix: null,
+    verified: {},            // probe id -> { command } (only for defs with `verification` probes)
     hintCounts: Object.fromEntries(HINT_PHASES.map((p) => [p, 0])),
     log: [],
   };
@@ -52,6 +53,11 @@ export function createInvestigation(def) {
   }
   const requiredEvidence = () => def.evidence.filter((e) => e.required);
   const missingEvidence = () => requiredEvidence().filter((e) => !st.evidence[e.id]);
+  // Optional (v2.13): a def may list `verification` probes — commands the learner must run AFTER the
+  // fix passes (e.g. one as an account that must be denied, one as an account that must still work).
+  // Defs without it keep the v2.12 single-predicate `verify(ev)` behaviour unchanged.
+  const probes = () => def.verification || [];
+  const missingProbes = () => probes().filter((p) => !st.verified[p.id]);
 
   function snapshot() {
     return {
@@ -60,6 +66,8 @@ export function createInvestigation(def) {
       missingEvidence: missingEvidence().map((e) => e.id),
       diagnosisAttempts: st.diagnosisAttempts.map((a) => ({ ...a })),
       fixAttempts: st.fixAttempts, lastFix: st.lastFix,
+      verified: { ...st.verified },
+      missingVerification: missingProbes().map((p) => p.id),
       hintCounts: { ...st.hintCounts },
       hintsUsed: Object.values(st.hintCounts).reduce((a, b) => a + b, 0),
     };
@@ -74,7 +82,7 @@ export function createInvestigation(def) {
     start() {
       startScenario(def);
       st.phase = "evidence"; st.evidence = {}; st.diagnosisAttempts = []; st.fixAttempts = 0;
-      st.lastFix = null; st.log = []; hintSessions = makeHintSessions();
+      st.lastFix = null; st.verified = {}; st.log = []; hintSessions = makeHintSessions();
       Object.keys(st.hintCounts).forEach((k) => { st.hintCounts[k] = 0; });
       return snapshot();
     },
@@ -94,12 +102,22 @@ export function createInvestigation(def) {
 
       for (const item of def.evidence) {
         if (!st.evidence[item.id] && item.matches(ev)) {
-          st.evidence[item.id] = { finding: item.finding(), command: `${ev.cmd} ${ev.args.join(" ")}`.trim() };
+          st.evidence[item.id] = { finding: item.finding(ev), command: `${ev.cmd} ${ev.args.join(" ")}`.trim() };
         }
       }
       if (st.phase === "evidence" && missingEvidence().length === 0) st.phase = "diagnosis";
 
-      if (st.phase === "verification" && def.verify(ev)) {
+      if (st.phase === "verification" && probes().length) {
+        for (const p of probes()) {
+          if (!st.verified[p.id] && p.matches(ev)) st.verified[p.id] = { command: `${ev.user}: ${ev.cmd} ${ev.args.join(" ")}`.trim() };
+        }
+        if (missingProbes().length === 0) {
+          // Every probe has run: judge the LIVE state one last time (the fix may have been undone meanwhile).
+          const r = evaluateChecks(def.checks);
+          st.lastFix = r;
+          if (r.ok) st.phase = "complete"; else { st.phase = "remediation"; st.verified = {}; }
+        }
+      } else if (st.phase === "verification" && def.verify && def.verify(ev)) {
         const r = evaluateChecks(def.checks);
         st.lastFix = r;
         st.phase = r.ok ? "complete" : "remediation";
@@ -129,7 +147,7 @@ export function createInvestigation(def) {
       if (st.phase !== "remediation" && st.phase !== "verification") return { ok: false, reason: "wrong-phase", phase: st.phase };
       const r = evaluateChecks(def.checks);
       st.lastFix = r;
-      if (r.ok) { st.phase = "verification"; } else { st.fixAttempts += 1; st.phase = "remediation"; }
+      if (r.ok) { st.phase = "verification"; } else { st.fixAttempts += 1; st.phase = "remediation"; st.verified = {}; }
       return { ok: true, fixed: r.ok, result: r, phase: st.phase };
     },
 
@@ -147,7 +165,10 @@ export function createInvestigation(def) {
     /** Evidence-based closing explanation, built from the final state. */
     summary() {
       if (st.phase !== "complete") return null;
-      return def.summarize({ result: st.lastFix, attempts: st.diagnosisAttempts, hintsUsed: snapshot().hintsUsed });
+      return def.summarize({
+        result: st.lastFix, attempts: st.diagnosisAttempts, hintsUsed: snapshot().hintsUsed,
+        evidence: { ...st.evidence }, verified: { ...st.verified },
+      });
     },
   };
 }
