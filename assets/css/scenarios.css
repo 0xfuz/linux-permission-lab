@@ -61,3 +61,15 @@
   .sc-actions .btn { flex: 1 1 auto; }
   .sc-step { font-size: 0.75rem; }
 }
+
+/* Incident report (v2.13): a label and the terminal quote under it must not share a line, and the sections need air.
+   Found in a real-browser review — the DOM tests cannot see layout. */
+.sc-report .eyebrow { margin: 18px 0 6px; }
+.sc-report .eyebrow:first-of-type { margin-top: 10px; }
+.sc-report .sc-list li { margin-bottom: 10px; }
+.sc-report .sc-detail { display: block; margin-top: 4px; }
+
+/* Light-theme contrast inside this panel (v2.13): the global amber heading colour is ~1.5:1 and the tertiary text
+   token ~3:1 on the light surfaces, both below WCAG AA (4.5:1). Scoped here so the rest of the app is untouched. */
+:root[data-theme="light"] .scenario-panel .eyebrow { color: #8a5a00; }
+:root[data-theme="light"] .scenario-panel .text-tertiary { color: var(--text-secondary); }

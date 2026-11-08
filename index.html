@@ -289,7 +289,7 @@
             </div>
           </div>
           <div class="site-footer-bottom">
-            <p class="footer-note"><span data-i18n="home.footerNote">Linux Permission Lab v2.3 · Educational simulation, no real shell execution</span> · <span id="current-year"></span></p>
+            <p class="footer-note"><span data-i18n="home.footerNote">Linux Permission Lab v2.13.0 · Educational simulation, no real shell execution</span> · <span id="current-year"></span></p>
             <p class="footer-author-credit">
               <span data-i18n="hero.authorBadge">Created by</span> <strong>0x0MAr</strong>
               <span class="author-social">
@@ -704,13 +704,18 @@
 
 <!-- ========================= JS-BLOCKED FALLBACK NOTICE ========================= -->
 <div id="module-blocked-banner" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(8,10,10,0.92);align-items:center;justify-content:center;padding:24px;">
-  <div style="max-width:520px;background:#12181a;border:1px solid #33403f;border-radius:16px;padding:28px 32px;font-family:'Inter',sans-serif;color:#eef2f1;">
+  <div id="module-blocked-file" style="max-width:520px;background:#12181a;border:1px solid #33403f;border-radius:16px;padding:28px 32px;font-family:'Inter',sans-serif;color:#eef2f1;">
     <h2 style="font-family:'Space Grotesk',sans-serif;color:#ffb000;margin:0 0 12px;font-size:1.3rem;">This page needs a local server</h2>
     <p style="color:#a9b6b5;line-height:1.6;margin:0 0 14px;">You most likely opened <code>index.html</code> directly (a <code>file://</code> address). Browsers like Chrome block ES module scripts from loading over <code>file://</code> for security reasons, so the app's JavaScript never starts.</p>
     <p style="color:#a9b6b5;line-height:1.6;margin:0 0 14px;">Fix: serve the folder with any static server, then open the <code>http://</code> address it prints. For example, from inside the project folder:</p>
     <pre style="background:#080a0b;border:1px solid #232d30;border-radius:8px;padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:0.82rem;color:#ffcf5c;overflow-x:auto;margin:0 0 14px;">python3 -m http.server 8080
 # or: npx serve .</pre>
-    <p style="color:#6f8180;font-size:0.82rem;margin:0;">Then visit http://localhost:8080 — Firefox and Safari are more lenient about file:// modules, but a local server is the reliable fix everywhere, including GitHub Pages deployment.</p>
+    <p style="color:#6f8180;font-size:0.82rem;margin:0;">Then visit http://localhost:8080 — Firefox and Safari are more lenient about file:// modules, but a local server is the reliable fix everywhere. (The hosted GitHub Pages copy is served over HTTPS and never needs this.)</p>
+  </div>
+  <div id="module-blocked-failed" style="display:none;max-width:520px;background:#12181a;border:1px solid #33403f;border-radius:16px;padding:28px 32px;font-family:'Inter',sans-serif;color:#eef2f1;">
+    <h2 style="font-family:'Space Grotesk',sans-serif;color:#ffb000;margin:0 0 12px;font-size:1.3rem;">The app could not start</h2>
+    <p style="color:#a9b6b5;line-height:1.6;margin:0 0 14px;">A script the app needs failed to load, or crashed while starting. This is usually a dropped connection, an outdated cached copy, or a content blocker — it is not a problem with where the page was opened from.</p>
+    <p style="color:#6f8180;font-size:0.82rem;margin:0;">Reload the page (on Android: pull down to refresh). If it keeps happening, do a hard reload (Ctrl+Shift+R) or clear this site's data. The browser console (F12) shows which file failed.</p>
   </div>
 </div>
 <script src="assets/js/boot-fallback.js"></script>

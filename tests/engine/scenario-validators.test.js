@@ -69,7 +69,9 @@ describe("noWorldWriteUnder: effective ACL access", () => {
 
   test("REGRESSION: named entries giving every other account write are flagged (was a silent pass)", () => {
     grantAll(F);
-    assert.equal(node(F).octal, "600", "the mode alone looks private");
+    // v2.13.0: with ACL entries the mode's group digit shows the MASK (660 here), exactly as on Linux; what the
+    // original assertion meant — the mode's OTHERS bits still look private — is what is pinned now.
+    assert.match(node(F).octal, /0$/, "the others bits alone look private");
     assert.ok(NON_ROOT.filter((u) => u !== "user").every((u) => checkAccess(node(F), u, "w")), "yet everyone can write");
     const r = worldW();
     assert.equal(r.ok, false);
@@ -181,9 +183,17 @@ describe("accessWithin: effective access vs a plain mode (new)", () => {
     assert.equal(r.ok, false);
     assert.match(r.detail, /www-data \(\+rw\)/);
   });
-  test("this is exactly what modeWithin cannot see (mode 700 ⊆ 711 even with an rwx ACL)", () => {
-    run(`setfacl -m u:www-data:rwx ${D}`);
+  test("this is exactly what modeWithin cannot see (a fixture-built node: mode 700 ⊆ 711 even with an rwx ACL)", () => {
+    // Fixture form (ACL attached to the node, mode left at 700). Commands can no longer produce this state,
+    // because on Linux the mode's group digit mirrors the ACL mask — see the next test.
+    node(D).acl = [{ type: "user", id: "www-data", perms: "rwx" }];
     assert.equal(S.modeWithin("m", D, "711").run().ok, true, "mode bits only");
+    assert.equal(within("711").ok, false, "effective access");
+  });
+  test("v2.13.0: a command-created ACL shows in the mode itself (770), so BOTH validators see it, as on Linux", () => {
+    run(`setfacl -m u:www-data:rwx ${D}`);
+    assert.equal(node(D).octal, "770");
+    assert.equal(S.modeWithin("m", D, "711").run().ok, false, "the mask is visible in the mode");
     assert.equal(within("711").ok, false, "effective access");
   });
   test("the ACL mask is respected: an rwx entry capped to --x passes", () => {

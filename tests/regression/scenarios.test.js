@@ -31,10 +31,10 @@ beforeEach(() => { resetTerminalState(); resetLocalStorageShim(); });
 afterEach(() => { setCommandObserver(null); S.unloadScenario(); resetTerminalState(); });
 
 describe("scenario data invariants", () => {
-  test("5 scenarios: 4 challenges + 1 investigation", () => {
+  test("6 scenarios: 4 challenges + 2 investigations", () => {
     assert.equal(CHALLENGE_SCENARIOS.length, 4);
-    assert.equal(INVESTIGATIONS.length, 1);
-    assert.equal(SCENARIOS.length, 5);
+    assert.equal(INVESTIGATIONS.length, 2);
+    assert.equal(SCENARIOS.length, 6);
   });
   test("ids are unique and do not collide with the 88 octal challenges", () => {
     const ids = SCENARIOS.map((s) => s.id);
@@ -301,7 +301,7 @@ describe("progress persistence and backward compatibility", () => {
     assert.equal(t.level, 2);
     const snap = buildProgressSnapshot();
     assert.equal(snap.schema, "lpl-progress-v1");
-    assert.deepEqual(snap.scenarios, { completed: 2, total: 5 });
+    assert.deepEqual(snap.scenarios, { completed: 2, total: 6 });
     assert.equal(snap.xpBreakdown.scenarios, 300);
     for (const k of ["challenges", "labs", "quiz"]) assert.ok(k in snap.xpBreakdown);
   });

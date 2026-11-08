@@ -214,12 +214,12 @@ const backToList = () => { const b = byId(panel(), "sc-back"); if (b) click(b); 
 afterEach(() => backToList());
 
 describe("controller: list", () => {
-  test("lists all 5 scenarios with kind badge, XP and an Open button", () => {
+  test("lists all 6 scenarios with kind badge, XP and an Open button", () => {
     const cards = find(panel(), (n) => n.className && n.className.split(" ")[0] === "challenge-card");
-    assert.equal(cards.length, 5);
+    assert.equal(cards.length, 6);
     const t = allText(panel());
     assert.match(t, /Investigation/); assert.match(t, /Challenge/); assert.match(t, /\+75 XP/); assert.match(t, /\+200 XP/);
-    assert.equal(find(panel(), (n) => n.tag === "button" && textOf(n).trim() === "Open").length, 5);
+    assert.equal(find(panel(), (n) => n.tag === "button" && textOf(n).trim() === "Open").length, 6);
   });
 });
 
@@ -279,7 +279,7 @@ describe("controller: challenge end to end", () => {
     backToList();
     assert.equal(JSON.stringify(FS_TREE), baseTree);
     assert.equal(getTerminalState().cwd, "/home/user");
-    assert.equal(find(panel(), (n) => n.className && n.className.split(" ")[0] === "challenge-card").length, 5);
+    assert.equal(find(panel(), (n) => n.className && n.className.split(" ")[0] === "challenge-card").length, 6);
   });
 
   test("switching scenarios replaces the previous one's files", () => {
